@@ -222,6 +222,10 @@ namespace TerreZero.World
             if (_world == null || delta.H3Index != DemoH3Index)
                 return false;
 
+            if (delta.WorldVersion != OSMVoxelizer.WorldVersion ||
+                delta.GeneratorVersion != OSMVoxelizer.GeneratorVersion)
+                return false;
+
             if (delta.ChunkCoords == null || delta.ChunkCoords.Length != 3 ||
                 delta.LocalVoxel == null || delta.LocalVoxel.Length != 3)
                 return false;
