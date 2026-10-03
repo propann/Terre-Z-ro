@@ -18,6 +18,19 @@ jobs:
       - name: Build
         run: bun run build
 
+  godot-dotnet:
+    name: Godot C# compile
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Restore
+        run: dotnet restore godot_project/TerreZero.csproj
+      - name: Build
+        run: dotnet build godot_project/TerreZero.csproj --no-restore --configuration Release
+
   go:
     name: Go backend
     runs-on: ubuntu-latest
@@ -29,12 +42,9 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.23'
-      - name: Validate module
-        run: |
-          if [ -f go.mod ]; then
-            go mod tidy
-            go vet ./...
-            go test ./...
-          else
-            echo "go.mod missing - backend module bootstrap still required"
-          fi
+      - name: Download dependencies
+        run: go mod download
+      - name: Vet
+        run: go vet ./...
+      - name: Tests
+        run: go test ./...
