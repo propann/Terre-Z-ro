@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS osm_buildings (
     levels INT DEFAULT 2,
     height_meters FLOAT DEFAULT 6.0,
     world_version INT NOT NULL DEFAULT 1,
-    generator_version INT NOT NULL DEFAULT 2,
+    generator_version INT NOT NULL DEFAULT 3,
     generation_seed BIGINT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -37,7 +37,7 @@ CREATE INDEX IF NOT EXISTS idx_roads_h3 ON osm_roads (h3_index);
 CREATE TABLE IF NOT EXISTS voxel_deltas (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     world_version INT NOT NULL DEFAULT 1,
-    generator_version INT NOT NULL DEFAULT 2,
+    generator_version INT NOT NULL DEFAULT 3,
     h3_index VARCHAR(16) NOT NULL,
     chunk_x INT NOT NULL,
     chunk_y INT NOT NULL,
