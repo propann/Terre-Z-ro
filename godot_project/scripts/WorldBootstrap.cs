@@ -1,7 +1,9 @@
+using System;
 using System.Collections.Concurrent;
 using Godot;
 using TerreZero.Network;
 using TerreZero.World.Generation;
+using TerreZero.World.Geo;
 using TerreZero.World.Voxel;
 
 namespace TerreZero.World
@@ -14,35 +16,44 @@ namespace TerreZero.World
         [Export] public string DemoAmenity { get; set; } = "pharmacy";
         [Export] public int StreamRadiusChunks { get; set; } = 3;
 
+        [Export] public bool UseRemoteWorldData { get; set; } = false;
+        [Export] public string WorldApiBaseUrl { get; set; } = "http://127.0.0.1:8080";
+        [Export] public double AnchorLatitude { get; set; } = 45.0;
+        [Export] public double AnchorLongitude { get; set; } = 5.0;
+
         private readonly ConcurrentQueue<VoxelDeltaEvent> _remoteDeltas = new();
         private VoxelWorldGrid _world;
         private Node3D _player;
         private double _streamTimer;
 
-        public override void _Ready()
+        public override async void _Ready()
         {
             var container = GetNode<Node3D>("VoxelWorldContainer");
             _player = GetNode<Node3D>("Player");
             _world = new VoxelWorldGrid(container, DemoH3Index);
 
-            var generation = OSMVoxelizer.VoxelizeBuilding(
-                _world,
-                new Rect2(new Vector2(0.0f, 0.0f), new Vector2(20.0f, 30.0f)),
-                18.0f,
-                DemoBuildingType,
-                DemoAmenity,
-                DemoOsmId
-            );
+            bool generatedRemoteWorld = false;
+
+            if (UseRemoteWorldData)
+            {
+                try
+                {
+                    generatedRemoteWorld = await GenerateRemoteWorldAsync();
+                }
+                catch (Exception ex)
+                {
+                    GD.PushWarning(
+                        $"[TERRE ZÉRO] données monde indisponibles : {ex.Message}. " +
+                        "Utilisation de la zone de démonstration."
+                    );
+                }
+            }
+
+            if (!generatedRemoteWorld)
+                GenerateDemoWorld();
 
             _world.UpdateVisibility(_player.GlobalPosition, StreamRadiusChunks);
             DeltaSyncManager.RemoteDeltaReceived += OnRemoteDeltaReceived;
-
-            GD.Print(
-                $"[TERRE ZÉRO] zone prête h3={DemoH3Index} " +
-                $"osm={DemoOsmId} seed={generation.Seed} " +
-                $"étages={generation.Floors} pièces={generation.Rooms} " +
-                $"chunks={generation.TouchedChunks}"
-            );
         }
 
         public override void _Process(double delta)
@@ -61,6 +72,81 @@ namespace TerreZero.World
         public override void _ExitTree()
         {
             DeltaSyncManager.RemoteDeltaReceived -= OnRemoteDeltaReceived;
+        }
+
+        private async System.Threading.Tasks.Task<bool> GenerateRemoteWorldAsync()
+        {
+            using var client = new WorldDataClient(WorldApiBaseUrl);
+            WorldCellPayload cell = await client.GetCellAsync(DemoH3Index);
+
+            if (cell.Buildings == null || cell.Buildings.Count == 0)
+                return false;
+
+            var anchor = new GeoAnchor(AnchorLatitude, AnchorLongitude);
+            int generated = 0;
+
+            foreach (var building in cell.Buildings)
+            {
+                if (building.Geometry == null)
+                    continue;
+
+                Vector2[] polygon = building.Geometry.ProjectOuterRing(anchor);
+                if (polygon.Length < 3)
+                    continue;
+
+                float height = building.HeightMeters > 0
+                    ? building.HeightMeters
+                    : Math.Max(3f, building.Levels * 3f);
+
+                var result = OSMPolygonVoxelizer.VoxelizeBuilding(
+                    _world,
+                    polygon,
+                    height,
+                    building.BuildingType,
+                    building.Amenity,
+                    building.OSMID
+                );
+
+                generated++;
+
+                GD.Print(
+                    $"[TERRE ZÉRO] OSM {building.OSMID} " +
+                    $"étages={result.Floors} pièces={result.Rooms} " +
+                    $"seed={result.Seed}"
+                );
+            }
+
+            if (generated == 0)
+                return false;
+
+            GD.Print(
+                $"[TERRE ZÉRO] cellule réelle {DemoH3Index} : " +
+                $"{generated} bâtiments, {_world.LoadedChunkCount} chunks"
+            );
+
+            return true;
+        }
+
+        private void GenerateDemoWorld()
+        {
+            var generation = OSMVoxelizer.VoxelizeBuilding(
+                _world,
+                new Rect2(
+                    new Vector2(0.0f, 0.0f),
+                    new Vector2(20.0f, 30.0f)
+                ),
+                18.0f,
+                DemoBuildingType,
+                DemoAmenity,
+                DemoOsmId
+            );
+
+            GD.Print(
+                $"[TERRE ZÉRO] démo h3={DemoH3Index} " +
+                $"osm={DemoOsmId} seed={generation.Seed} " +
+                $"étages={generation.Floors} pièces={generation.Rooms} " +
+                $"chunks={generation.TouchedChunks}"
+            );
         }
 
         private void OnRemoteDeltaReceived(VoxelDeltaEvent delta)
