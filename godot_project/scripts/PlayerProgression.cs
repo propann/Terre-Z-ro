@@ -10,17 +10,17 @@ namespace TerreZero.Progression
 {
     public enum SkillBranch
     {
-        Engineer,    // Voxel, Craft, Défense de base
-        BioTracker,  // Chimères, Scan, Traque, Troc
-        HeavyCombat  // Armes, Forage lourd, Survie hostile
+        Engineer,
+        BioTracker,
+        HeavyCombat
     }
 
     public class CyberneticImplants
     {
-        public int OcularScannerLevel { get; set; } = 1; // 1: Thermique, 2: Failles, 3: Spectromètre
-        public bool SpinalExoskeleton { get; set; } = false; // +Charge utile, pas de malus forage lourd
-        public bool CerebralInterface { get; set; } = false; // -50% temps d'injection modules
-        public int DermalArmorLevel { get; set; } = 0;   // Grille sous-cutanée (réduit acide/entailles)
+        public int OcularScannerLevel { get; set; } = 1;
+        public bool SpinalExoskeleton { get; set; } = false;
+        public bool CerebralInterface { get; set; } = false;
+        public int DermalArmorLevel { get; set; } = 0;
     }
 
     public class DeathCrate
@@ -37,43 +37,42 @@ namespace TerreZero.Progression
         }
     }
 
-    public class PlayerProgression : Node
+    public partial class PlayerProgression : Node
     {
         [Export] public double TotalWalkedKilometers = 12.4;
         [Export] public int MasteryPoints = 4;
 
-        public CyberneticImplants Implants { get; private set; } = new CyberneticImplants();
-        public HashSet<string> UnlockedPerks { get; private set; } = new HashSet<string>();
+        public CyberneticImplants Implants { get; private set; } = new();
+        public HashSet<string> UnlockedPerks { get; private set; } = new();
         public DeathCrate CurrentDeathCrate { get; private set; }
 
-        // Traits physiques débloqués selon les paliers réels
-        public bool HasEconomicStride => TotalWalkedKilometers >= 10.0;    // -15% fatigue sprint
-        public bool HasSteelBack => TotalWalkedKilometers >= 50.0;          // +15kg capacité sac
-        public bool HasTrackerSense => TotalWalkedKilometers >= 100.0;      // +10m rayon détection passive
-        public bool HasHardenedMetabolism => TotalWalkedKilometers >= 250.0;// +20% résistance radiation
-        public bool HasVeteranDrifter => TotalWalkedKilometers >= 500.0;    // Vitesse accrue & -50% rations
+        public bool HasEconomicStride => TotalWalkedKilometers >= 10.0;
+        public bool HasSteelBack => TotalWalkedKilometers >= 50.0;
+        public bool HasTrackerSense => TotalWalkedKilometers >= 100.0;
+        public bool HasHardenedMetabolism => TotalWalkedKilometers >= 250.0;
+        public bool HasVeteranDrifter => TotalWalkedKilometers >= 500.0;
 
-        // Ajouter de la distance via le podomètre validé
         public void AddKilometers(double km)
         {
             TotalWalkedKilometers += km;
             GD.Print($"[PROGRESSION] Distance cumulée : {TotalWalkedKilometers:F2} km");
         }
 
-        // Débloquer une compétence d'arbre
         public bool UnlockPerk(string perkId, int cost)
         {
-            if (MasteryPoints < cost || UnlockedPerks.Contains(perkId)) return false;
+            if (MasteryPoints < cost || UnlockedPerks.Contains(perkId))
+                return false;
+
             MasteryPoints -= cost;
             UnlockedPerks.Add(perkId);
             GD.Print($"[PROGRESSION] Compétence débloquée : {perkId}");
             return true;
         }
 
-        // Greffer un implant au bunker
         public void UpgradeOcularScanner()
         {
-            if (Implants.OcularScannerLevel < 3) Implants.OcularScannerLevel++;
+            if (Implants.OcularScannerLevel < 3)
+                Implants.OcularScannerLevel++;
         }
 
         public void InstallSpinalExoskeleton()
@@ -81,7 +80,6 @@ namespace TerreZero.Progression
             Implants.SpinalExoskeleton = true;
         }
 
-        // Mort du survivant : Dépose une caisse de largage aux coordonnées GPS exactes
         public void OnPlayerDeath(double currentLat, double currentLon)
         {
             CurrentDeathCrate = new DeathCrate
@@ -91,32 +89,29 @@ namespace TerreZero.Progression
                 DroppedTimestampMs = Time.GetTicksMsec(),
                 IsRecovered = false
             };
-            GD.Print($"[SURVIE] Mort au combat. Caisse de mort déposée à ({currentLat:F5}, {currentLon:F5}). Fenêtre de 24h active !");
+            GD.Print($"[SURVIE] Caisse de mort déposée à ({currentLat:F5}, {currentLon:F5}).");
         }
 
-        // Récupération de la caisse lors d'une marche réelle à moins de 25m
         public bool TryRecoverDeathCrate(double playerLat, double playerLon)
         {
-            if (CurrentDeathCrate == null || CurrentDeathCrate.IsRecovered) return false;
+            if (CurrentDeathCrate == null || CurrentDeathCrate.IsRecovered)
+                return false;
+
             if (CurrentDeathCrate.IsExpired(Time.GetTicksMsec()))
             {
-                GD.Print("[SURVIE] Caisse de mort dissoute ou pillée après 24h !");
                 CurrentDeathCrate = null;
                 return false;
             }
 
-            // Calcul distance
             double dLat = (CurrentDeathCrate.Lat - playerLat) * 111000.0;
             double dLon = (CurrentDeathCrate.Lon - playerLon) * 111000.0;
             double distMeters = Math.Sqrt(dLat * dLat + dLon * dLon);
 
-            if (distMeters <= 25.0)
-            {
-                CurrentDeathCrate.IsRecovered = true;
-                GD.Print("[SURVIE] Caisse de mort récupérée avec succès sur site !");
-                return true;
-            }
-            return false;
+            if (distMeters > 25.0)
+                return false;
+
+            CurrentDeathCrate.IsRecovered = true;
+            return true;
         }
     }
 }
