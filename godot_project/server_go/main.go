@@ -69,6 +69,33 @@ func (s *memoryStore) List(_ context.Context, h3 string) ([]VoxelDelta, error) {
 func (s *memoryStore) Close() error { return nil }
 func (s *memoryStore) Name() string { return "memory" }
 
+type WorldBuilding struct {
+	OSMID          int64           `json:"osm_id"`
+	Name           string          `json:"name,omitempty"`
+	BuildingType   string          `json:"building_type"`
+	Amenity        string          `json:"amenity,omitempty"`
+	Shop           string          `json:"shop,omitempty"`
+	Levels         int             `json:"levels"`
+	HeightMeters   float64         `json:"height_meters"`
+	WorldVersion   int             `json:"world_version"`
+	GeneratorVersion int           `json:"generator_version"`
+	Geometry       json.RawMessage `json:"geometry"`
+}
+
+type WorldRoad struct {
+	OSMID       int64           `json:"osm_id"`
+	HighwayType string          `json:"highway_type"`
+	Surface     string          `json:"surface"`
+	Lanes       int             `json:"lanes"`
+	Geometry    json.RawMessage `json:"geometry"`
+}
+
+type WorldCell struct {
+	H3Index   string          `json:"h3_index"`
+	Buildings []WorldBuilding `json:"buildings"`
+	Roads     []WorldRoad     `json:"roads"`
+}
+
 type postgresStore struct {
 	db *sql.DB
 }
@@ -127,6 +154,98 @@ func (s *postgresStore) List(ctx context.Context, h3 string) ([]VoxelDelta, erro
 		out = append(out, d)
 	}
 	return out, rows.Err()
+}
+
+func (s *postgresStore) LoadWorldCell(ctx context.Context, h3 string) (WorldCell, error) {
+	cell := WorldCell{
+		H3Index:   h3,
+		Buildings: []WorldBuilding{},
+		Roads:     []WorldRoad{},
+	}
+
+	buildingRows, err := s.db.QueryContext(ctx, `
+		SELECT osm_id,
+		       COALESCE(name, ''),
+		       COALESCE(building_type, 'yes'),
+		       COALESCE(amenity, ''),
+		       COALESCE(shop, ''),
+		       COALESCE(levels, 2),
+		       COALESCE(height_meters, 6.0),
+		       COALESCE(world_version, 1),
+		       COALESCE(generator_version, 3),
+		       ST_AsGeoJSON(geom)
+		FROM osm_buildings
+		WHERE h3_index = $1
+		ORDER BY osm_id ASC`, h3)
+	if err != nil {
+		return cell, err
+	}
+
+	for buildingRows.Next() {
+		var building WorldBuilding
+		var geoJSON string
+		if err := buildingRows.Scan(
+			&building.OSMID,
+			&building.Name,
+			&building.BuildingType,
+			&building.Amenity,
+			&building.Shop,
+			&building.Levels,
+			&building.HeightMeters,
+			&building.WorldVersion,
+			&building.GeneratorVersion,
+			&geoJSON,
+		); err != nil {
+			buildingRows.Close()
+			return cell, err
+		}
+		building.Geometry = json.RawMessage(geoJSON)
+		cell.Buildings = append(cell.Buildings, building)
+	}
+	if err := buildingRows.Close(); err != nil {
+		return cell, err
+	}
+	if err := buildingRows.Err(); err != nil {
+		return cell, err
+	}
+
+	roadRows, err := s.db.QueryContext(ctx, `
+		SELECT osm_id,
+		       highway_type,
+		       COALESCE(surface, 'asphalt'),
+		       COALESCE(lanes, 2),
+		       ST_AsGeoJSON(geom)
+		FROM osm_roads
+		WHERE h3_index = $1
+		ORDER BY osm_id ASC`, h3)
+	if err != nil {
+		return cell, err
+	}
+
+	for roadRows.Next() {
+		var road WorldRoad
+		var geoJSON string
+		if err := roadRows.Scan(
+			&road.OSMID,
+			&road.HighwayType,
+			&road.Surface,
+			&road.Lanes,
+			&geoJSON,
+		); err != nil {
+			roadRows.Close()
+			return cell, err
+		}
+		road.Geometry = json.RawMessage(geoJSON)
+		cell.Roads = append(cell.Roads, road)
+	}
+	if err := roadRows.Close(); err != nil {
+		return cell, err
+	}
+	if err := roadRows.Err(); err != nil {
+		return cell, err
+	}
+
+	return cell, nil
 }
 
 func (s *postgresStore) Close() error { return s.db.Close() }
@@ -215,6 +334,7 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/v1/health", handleHealth)
 	mux.HandleFunc("/api/v1/cells/", handleGetCellDeltas)
+	mux.HandleFunc("/api/v1/world/cells/", handleGetWorldCell)
 	mux.HandleFunc("/ws/spatial", handleSpatialWebSocket)
 
 	server := &http.Server{
@@ -268,6 +388,33 @@ func handleGetCellDeltas(w http.ResponseWriter, r *http.Request) {
 		"count":    len(deltas),
 		"deltas":   deltas,
 	})
+}
+
+func handleGetWorldCell(w http.ResponseWriter, r *http.Request) {
+	h3 := strings.TrimSpace(strings.TrimPrefix(r.URL.Path, "/api/v1/world/cells/"))
+	if !validH3(h3) {
+		http.Error(w, "index H3 invalide", http.StatusBadRequest)
+		return
+	}
+
+	pg, ok := store.(*postgresStore)
+	if !ok {
+		writeJSON(w, http.StatusOK, WorldCell{
+			H3Index:   h3,
+			Buildings: []WorldBuilding{},
+			Roads:     []WorldRoad{},
+		})
+		return
+	}
+
+	cell, err := pg.LoadWorldCell(r.Context(), h3)
+	if err != nil {
+		log.Printf("world cell %s: %v", h3, err)
+		http.Error(w, "lecture de la cellule monde impossible", http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, cell)
 }
 
 func handleSpatialWebSocket(w http.ResponseWriter, r *http.Request) {
