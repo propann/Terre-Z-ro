@@ -1,21 +1,32 @@
-# Projet Godot 4 (C# / .NET) : Chimères Micro-Voxel
+# Terre Zéro — Client Godot 4 C# / .NET
 
-## 🎮 Instructions d'Importation dans Godot Engine 4.3
+Ce dossier contient le client de jeu principal de **Terre Zéro**.
 
-1. **Prérequis :**
-   - Godot Engine 4.3 (version **.NET / C#**).
-   - .NET 8.0 SDK installé sur votre machine.
+Terre Zéro est un jeu de survie post-apocalyptique géolocalisé dans lequel le monde réel est reconstruit en micro-voxels à partir d'OpenStreetMap.
 
-2. **Lancement du Projet :**
-   - Ouvrez Godot 4.3 .NET.
-   - Cliquez sur **Importer** et sélectionnez le fichier `project.godot` de ce dossier.
-   - Cliquez sur **Build** en haut à droite pour compiler les scripts C# (`dotnet build`).
-   - Appuyez sur **F5** (ou le bouton Play) pour lancer le monde micro-voxel !
+## Prérequis
 
-3. **Contrôles en Jeu :**
-   - **Z / Q / S / D (ou W / A / S / D) :** Déplacement du personnage.
-   - **Souris :** Orientation du regard.
-   - **Espace :** Saut.
-   - **Clic Gauche :** Forage / Destruction chirurgicale de micro-voxels au laser / pioche.
-   - **Clic Droit :** Pose de blocs (Béton, Titane, Verre blindé).
-   - **Touche F :** Basculer le scanner radar X-Ray pour localiser le cuivre et les trousses médicales scellées dans les cloisons.
+- Godot Engine 4.3 **.NET / C#**
+- .NET 8 SDK
+
+## Lancement
+
+1. Ouvrir Godot 4.3 .NET.
+2. Importer `godot_project/project.godot`.
+3. Compiler les scripts C#.
+4. Lancer la scène principale avec **F5**.
+
+## Contrôles actuels
+
+- **Z/Q/S/D ou W/A/S/D** : déplacement
+- **Souris** : caméra
+- **Espace** : saut
+- **Clic gauche** : forage / destruction micro-voxel
+- **Clic droit** : pose de bloc
+- **F** : scanner X-Ray
+
+## Architecture
+
+Les Chimères sont des créatures du monde de Terre Zéro. Elles ne constituent plus l'identité du projet.
+
+Le namespace racine du client est désormais `TerreZero`.
