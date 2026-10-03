@@ -12,6 +12,12 @@ namespace TerreZero.Network
 {
     public class VoxelDeltaEvent
     {
+        [JsonPropertyName("world_version")]
+        public int WorldVersion { get; set; } = 1;
+
+        [JsonPropertyName("generator_version")]
+        public int GeneratorVersion { get; set; } = 3;
+
         [JsonPropertyName("h3_index")]
         public string H3Index { get; set; }
 
@@ -68,6 +74,8 @@ namespace TerreZero.Network
         {
             var delta = new VoxelDeltaEvent
             {
+                WorldVersion = 1,
+                GeneratorVersion = 3,
                 H3Index = h3Index,
                 ChunkCoords = new[] { chunkCoord.X, chunkCoord.Y, chunkCoord.Z },
                 LocalVoxel = new[] { localVoxel.X, localVoxel.Y, localVoxel.Z },
@@ -88,6 +96,8 @@ namespace TerreZero.Network
                 await SendAsync(new SpatialEnvelope
                 {
                     Type = "delta",
+                    WorldVersion = delta.WorldVersion,
+                    GeneratorVersion = delta.GeneratorVersion,
                     H3Index = delta.H3Index,
                     ChunkCoords = delta.ChunkCoords,
                     LocalVoxel = delta.LocalVoxel,
