@@ -17,12 +17,18 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
-const maxMessageSize = 16 * 1024
+const (
+	maxMessageSize  = 16 * 1024
+	worldVersion    = 1
+	generatorVersion = 3
+)
 
 var h3Pattern = regexp.MustCompile("^[0-9a-fA-F]{15,16}$")
 
 type VoxelDelta struct {
-	H3Index    string    `json:"h3_index"`
+	WorldVersion     int       `json:"world_version"`
+	GeneratorVersion int       `json:"generator_version"`
+	H3Index          string    `json:"h3_index"`
 	ChunkCoord [3]int    `json:"chunk_coords"`
 	LocalVoxel [3]int    `json:"local_voxel"`
 	Action     string    `json:"action"`
@@ -62,7 +68,14 @@ func (s *memoryStore) Save(_ context.Context, delta VoxelDelta) error {
 func (s *memoryStore) List(_ context.Context, h3 string) ([]VoxelDelta, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	out := append([]VoxelDelta(nil), s.deltas[h3]...)
+	source := s.deltas[h3]
+	out := make([]VoxelDelta, 0, len(source))
+	for _, delta := range source {
+		if delta.WorldVersion == worldVersion &&
+			delta.GeneratorVersion == generatorVersion {
+			out = append(out, delta)
+		}
+	}
 	return out, nil
 }
 
@@ -115,10 +128,12 @@ func newPostgresStore(ctx context.Context, url string) (*postgresStore, error) {
 func (s *postgresStore) Save(ctx context.Context, d VoxelDelta) error {
 	_, err := s.db.ExecContext(ctx, `
 		INSERT INTO voxel_deltas (
+			world_version, generator_version,
 			h3_index, chunk_x, chunk_y, chunk_z,
 			local_x, local_y, local_z,
 			action, material_id, player_id, created_at
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+		d.WorldVersion, d.GeneratorVersion,
 		d.H3Index,
 		d.ChunkCoord[0], d.ChunkCoord[1], d.ChunkCoord[2],
 		d.LocalVoxel[0], d.LocalVoxel[1], d.LocalVoxel[2],
@@ -129,12 +144,15 @@ func (s *postgresStore) Save(ctx context.Context, d VoxelDelta) error {
 
 func (s *postgresStore) List(ctx context.Context, h3 string) ([]VoxelDelta, error) {
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT h3_index, chunk_x, chunk_y, chunk_z,
+		SELECT world_version, generator_version,
+		       h3_index, chunk_x, chunk_y, chunk_z,
 		       local_x, local_y, local_z,
 		       action, material_id, player_id, created_at
 		FROM voxel_deltas
 		WHERE h3_index = $1
-		ORDER BY created_at ASC`, h3)
+		  AND world_version = $2
+		  AND generator_version = $3
+		ORDER BY created_at ASC`, h3, worldVersion, generatorVersion)
 	if err != nil {
 		return nil, err
 	}
@@ -144,6 +162,8 @@ func (s *postgresStore) List(ctx context.Context, h3 string) ([]VoxelDelta, erro
 	for rows.Next() {
 		var d VoxelDelta
 		if err := rows.Scan(
+			&d.WorldVersion,
+			&d.GeneratorVersion,
 			&d.H3Index,
 			&d.ChunkCoord[0], &d.ChunkCoord[1], &d.ChunkCoord[2],
 			&d.LocalVoxel[0], &d.LocalVoxel[1], &d.LocalVoxel[2],
@@ -367,7 +387,7 @@ func handleHealth(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{
 		"status":  "healthy",
 		"service": "terre-zero-backend",
-		"version": "0.2.0",
+		"version": "0.3.0",
 		"store":   store.Name(),
 	})
 }
@@ -477,6 +497,12 @@ func handleSpatialWebSocket(w http.ResponseWriter, r *http.Request) {
 }
 
 func validateDelta(d VoxelDelta) error {
+	if d.WorldVersion != worldVersion {
+		return errors.New("invalid_world_version")
+	}
+	if d.GeneratorVersion != generatorVersion {
+		return errors.New("invalid_generator_version")
+	}
 	if !validH3(d.H3Index) {
 		return errors.New("invalid_h3")
 	}
