@@ -1,0 +1,12 @@
+[gd_scene load_steps=2 format=3 uid="uid://d92847192a0e"]
+
+[ext_resource type="Script" path="res://scripts/VoxelChunk.cs" id="1_chunk"]
+
+[node name="VoxelChunk" type="Node3D"]
+script = ExtResource("1_chunk")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+
+[node name="StaticBody3D" type="StaticBody3D" parent="."]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D"]

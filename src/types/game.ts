@@ -1,6 +1,16 @@
 export type ChimereType = 'bio' | 'mechanical';
-export type ChimereRole = 'combat' | 'energy' | 'tracking' | 'transport' | 'idle';
+export type ChimereArchetype = 'techno_heavy' | 'techno_network' | 'bio_terrestrial' | 'bio_aquatic';
+export type ChimereRole = 'combat' | 'energy' | 'tracking' | 'transport' | 'mining' | 'idle';
 export type ChimereRarity = 'common' | 'rare' | 'apex';
+
+export interface ChimereAnatomyPart {
+  id: 'legs' | 'tank' | 'armor' | 'core';
+  name: string;
+  hp: number;
+  maxHp: number;
+  broken: boolean;
+  effectDesc: string;
+}
 
 export interface ChimereAbility {
   id: string;
@@ -16,6 +26,7 @@ export interface Chimere {
   name: string;
   species: string;
   type: ChimereType;
+  archetype?: ChimereArchetype;
   rarity: ChimereRarity;
   level: number;
   hp: number;
@@ -25,6 +36,8 @@ export interface Chimere {
   speed: number;
   catchRate: number; // 0-100%
   abilities: ChimereAbility[];
+  anatomy?: ChimereAnatomyPart[];
+  isOverkilled?: boolean;
   role: ChimereRole;
   captured: boolean;
   discoveredAt: string;
@@ -102,6 +115,80 @@ export interface H3Tile {
   lootDensity: number;
 }
 
+export type VehicleChassisType = 'moto' | 'buggy' | 'truck_6x6';
+export type VehicleDriveMode = 'manual_joystick' | 'autopilot_convoy';
+
+export interface VehicleModule {
+  slot: 'prow' | 'roof' | 'flanks' | 'flatbed';
+  name: string;
+  icon: string;
+  effect: string;
+  durability: number;
+}
+
+export interface VehicleState {
+  id: string;
+  name: string;
+  chassis: VehicleChassisType;
+  fuel: number; // 0-100%
+  maxFuel: number;
+  health: number;
+  maxHealth: number;
+  cargoCapacityKg: number;
+  cargo: Item[];
+  driveMode: VehicleDriveMode;
+  modules: {
+    prow?: VehicleModule;
+    roof?: VehicleModule;
+    flanks?: VehicleModule;
+    flatbed?: VehicleModule;
+  };
+}
+
+export type BiomutantMorphoStage = 'feral' | 'symbiote' | 'titan';
+
+export interface TechnoideHardware {
+  opticsLevel: 'basic' | 'military_infrared_50m';
+  cpuOverclock: boolean;
+  titaniumPlatingHp: number;
+}
+
+export interface PhysicalMilestone {
+  km: number;
+  traitName: string;
+  effect: string;
+  unlocked: boolean;
+  icon: string;
+}
+
+export interface SkillPerk {
+  id: string;
+  branch: 'engineer' | 'biotracker' | 'combat';
+  tier: number;
+  name: string;
+  desc: string;
+  unlocked: boolean;
+  cost: number;
+  isUltimate?: boolean;
+}
+
+export interface CyberneticImplants {
+  ocularLevel: number; // 1: Thermique, 2: Failles structurelles, 3: Spectromètre
+  spinalInstalled: boolean; // Exosquelette dorsal (+charge, pas de malus forage lourd)
+  cerebralInstalled: boolean; // -50% temps d'injection
+  dermalArmorLevel: number; // Grille sous-cutanée (réduit acide/entailles)
+}
+
+export interface DeathCrate {
+  id: string;
+  lat: number;
+  lon: number;
+  items: Item[];
+  droppedAt: number;
+  expiresAt: number;
+  recovered: boolean;
+}
+
 export interface PlayerState {
   lat: number;
   lon: number;
@@ -116,7 +203,12 @@ export interface PlayerState {
   maxWeight: number; // kg
   inventory: Item[];
   chimeres: Chimere[];
+  activeVehicle?: VehicleState;
   distanceWalkedMeters: number;
+  masteryPoints: number;
+  unlockedPerks: string[];
+  implants: CyberneticImplants;
+  deathCrate?: DeathCrate;
   scavengeCount: number;
   credits: number;
   level: number;

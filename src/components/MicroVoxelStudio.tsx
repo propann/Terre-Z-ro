@@ -39,7 +39,11 @@ import {
   Layers,
   Gamepad2,
   Package,
-  FolderArchive
+  FolderArchive,
+  ArrowUp,
+  ArrowDown,
+  ArrowLeft,
+  ArrowRight
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -54,6 +58,7 @@ export const MicroVoxelStudio: React.FC<MicroVoxelStudioProps> = ({ onCollectLoo
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const voxelMeshGroupRef = useRef<THREE.Group | null>(null);
   const blockHighlightRef = useRef<THREE.LineSegments | null>(null);
+  const particleGroupRef = useRef<THREE.Points | null>(null);
   const animationFrameRef = useRef<number | null>(null);
 
   // Voxel Chunk State
@@ -63,7 +68,7 @@ export const MicroVoxelStudio: React.FC<MicroVoxelStudioProps> = ({ onCollectLoo
   const [editsHistory, setEditsHistory] = useState<{ x: number; y: number; z: number; mat: VoxelMaterial }[]>([]);
 
   // Camera & Play Mode
-  const [viewMode, setViewMode] = useState<'orbit' | 'firstPerson'>('orbit');
+  const [viewMode, setViewMode] = useState<'orbit' | 'firstPerson'>('firstPerson');
   const [currentTool, setCurrentTool] = useState<'drill' | 'xray' | 'build'>('drill');
   const [brushSize, setBrushSize] = useState<number>(1.5);
   const [selectedBuildMat, setSelectedBuildMat] = useState<VoxelMaterial>(VoxelMaterial.STEEL_BARRICADE);
@@ -72,18 +77,15 @@ export const MicroVoxelStudio: React.FC<MicroVoxelStudioProps> = ({ onCollectLoo
   const [copiedScript, setCopiedScript] = useState<string | null>(null);
   const [activeScriptTab, setActiveScriptTab] = useState<'chunk' | 'mesher' | 'osm' | 'delta'>('chunk');
   const [isExportingZip, setIsExportingZip] = useState<boolean>(false);
+  const [isDrilling, setIsDrilling] = useState<boolean>(false);
 
   // First-Person Player Physics
-  const playerPos = useRef(new THREE.Vector3(0, 2.5, 6));
-  const playerVelocity = useRef(new THREE.Vector3(0, 0, 0));
+  const playerPos = useRef(new THREE.Vector3(0, 2.0, 5.5));
   const keyState = useRef<{ [key: string]: boolean }>({});
-  const isPointerLocked = useRef<boolean>(false);
-
-  // Camera Orbit
   const isDraggingRef = useRef(false);
   const prevMousePos = useRef({ x: 0, y: 0 });
   const cameraAngle = useRef({ theta: Math.PI / 4, phi: Math.PI / 3.8, radius: 14 });
-  const fpsLook = useRef({ pitch: 0, yaw: 0 });
+  const fpsLook = useRef({ pitch: -0.1, yaw: 0 });
 
   // Initialize Three.js Viewport
   useEffect(() => {
@@ -92,11 +94,11 @@ export const MicroVoxelStudio: React.FC<MicroVoxelStudioProps> = ({ onCollectLoo
     const height = containerRef.current.clientHeight;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x070a14);
-    scene.fog = new THREE.FogExp2(0x070a14, 0.025);
+    scene.background = new THREE.Color(0x060913);
+    scene.fog = new THREE.FogExp2(0x060913, 0.02);
     sceneRef.current = scene;
 
-    const camera = new THREE.PerspectiveCamera(55, width / height, 0.1, 100);
+    const camera = new THREE.PerspectiveCamera(60, width / height, 0.05, 120);
     cameraRef.current = camera;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -112,18 +114,25 @@ export const MicroVoxelStudio: React.FC<MicroVoxelStudioProps> = ({ onCollectLoo
     const ambientLight = new THREE.AmbientLight(0x64748b, 1.4);
     scene.add(ambientLight);
 
-    const dirLight = new THREE.DirectionalLight(0xffedd5, 1.8);
-    dirLight.position.set(10, 20, 15);
-    dirLight.castShadow = true;
-    scene.add(dirLight);
+    const sunLight = new THREE.DirectionalLight(0xffedd5, 1.8);
+    sunLight.position.set(12, 25, 18);
+    sunLight.castShadow = true;
+    scene.add(sunLight);
 
-    const fillLight = new THREE.DirectionalLight(0x0284c7, 0.9);
-    fillLight.position.set(-15, 10, -10);
-    scene.add(fillLight);
+    const blueFill = new THREE.DirectionalLight(0x0284c7, 0.8);
+    blueFill.position.set(-15, 10, -10);
+    scene.add(blueFill);
 
-    // Ground & Grid
-    const grid = new THREE.GridHelper(24, 48, 0x0284c7, 0x1e293b);
-    grid.position.y = -0.01;
+    // Ground Plane with Grid
+    const groundGeo = new THREE.PlaneGeometry(32, 32);
+    const groundMat = new THREE.MeshStandardMaterial({ color: 0x090d16, roughness: 0.9 });
+    const ground = new THREE.Mesh(groundGeo, groundMat);
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = -0.01;
+    scene.add(ground);
+
+    const grid = new THREE.GridHelper(32, 64, 0x0284c7, 0x1e293b);
+    grid.position.y = 0;
     scene.add(grid);
 
     // Voxel Mesh Group
@@ -133,12 +142,23 @@ export const MicroVoxelStudio: React.FC<MicroVoxelStudioProps> = ({ onCollectLoo
     voxelMeshGroupRef.current = meshGroup;
 
     // Block Targeting Wireframe Box
-    const highlightGeo = new THREE.EdgesGeometry(new THREE.BoxGeometry(VOXEL_SIZE_METERS * 1.02, VOXEL_SIZE_METERS * 1.02, VOXEL_SIZE_METERS * 1.02));
+    const highlightGeo = new THREE.EdgesGeometry(new THREE.BoxGeometry(VOXEL_SIZE_METERS * 1.05, VOXEL_SIZE_METERS * 1.05, VOXEL_SIZE_METERS * 1.05));
     const highlightMat = new THREE.LineBasicMaterial({ color: 0x38bdf8, linewidth: 2 });
     const highlight = new THREE.LineSegments(highlightGeo, highlightMat);
     highlight.visible = false;
     scene.add(highlight);
     blockHighlightRef.current = highlight;
+
+    // Spark Particles for Mining
+    const pCount = 80;
+    const pGeo = new THREE.BufferGeometry();
+    const pPos = new Float32Array(pCount * 3);
+    for (let i = 0; i < pCount * 3; i++) pPos[i] = 0;
+    pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+    const pMat = new THREE.PointsMaterial({ color: 0xf97316, size: 0.08, transparent: true, opacity: 0 });
+    const particles = new THREE.Points(pGeo, pMat);
+    scene.add(particles);
+    particleGroupRef.current = particles;
 
     // Keyboard Listeners for First-Person
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -186,37 +206,40 @@ export const MicroVoxelStudio: React.FC<MicroVoxelStudioProps> = ({ onCollectLoo
     };
     window.addEventListener('resize', handleResize);
 
-    // Clock
     const clock = new THREE.Clock();
 
     // Render loop
     const animate = () => {
       animationFrameRef.current = requestAnimationFrame(animate);
-      const delta = clock.getDelta();
+      const delta = Math.min(0.1, clock.getDelta());
 
       if (viewMode === 'firstPerson' && cameraRef.current) {
-        // First Person WASD Movement Physics
-        const speed = 4.0;
+        // WASD & Arrow Movement
+        const speed = 4.5;
         const forward = new THREE.Vector3(-Math.sin(fpsLook.current.yaw), 0, -Math.cos(fpsLook.current.yaw));
         const right = new THREE.Vector3(Math.cos(fpsLook.current.yaw), 0, -Math.sin(fpsLook.current.yaw));
 
         const moveDir = new THREE.Vector3(0, 0, 0);
-        if (keyState.current['KeyW'] || keyState.current['ArrowUp']) moveDir.add(forward);
+        if (keyState.current['KeyW'] || keyState.current['KeyZ'] || keyState.current['ArrowUp']) moveDir.add(forward);
         if (keyState.current['KeyS'] || keyState.current['ArrowDown']) moveDir.sub(forward);
         if (keyState.current['KeyD'] || keyState.current['ArrowRight']) moveDir.add(right);
-        if (keyState.current['KeyA'] || keyState.current['ArrowLeft']) moveDir.sub(right);
+        if (keyState.current['KeyA'] || keyState.current['KeyQ'] || keyState.current['ArrowLeft']) moveDir.sub(right);
 
         if (moveDir.lengthSq() > 0) {
           moveDir.normalize();
           playerPos.current.addScaledVector(moveDir, speed * delta);
         }
 
-        // Jump / Vertical
+        // Jump (Space) / Crouch (Shift)
         if (keyState.current['Space']) {
-          playerPos.current.y = Math.min(8, playerPos.current.y + 4 * delta);
+          playerPos.current.y = Math.min(6.5, playerPos.current.y + 4 * delta);
         } else if (keyState.current['ShiftLeft']) {
-          playerPos.current.y = Math.max(1.2, playerPos.current.y - 4 * delta);
+          playerPos.current.y = Math.max(1.0, playerPos.current.y - 4 * delta);
         }
+
+        // Keep inside bounds
+        playerPos.current.x = Math.max(-10, Math.min(10, playerPos.current.x));
+        playerPos.current.z = Math.max(-10, Math.min(10, playerPos.current.z));
 
         cameraRef.current.position.copy(playerPos.current);
         const lookTarget = playerPos.current.clone().add(new THREE.Vector3(
@@ -226,12 +249,12 @@ export const MicroVoxelStudio: React.FC<MicroVoxelStudioProps> = ({ onCollectLoo
         ));
         cameraRef.current.lookAt(lookTarget);
 
-        // Continuous Center Raycast for Block Targeting
+        // Center Raycast for block targeting
         const raycaster = new THREE.Raycaster();
         raycaster.setFromCamera(new THREE.Vector2(0, 0), cameraRef.current);
         if (voxelMeshGroupRef.current && blockHighlightRef.current) {
           const intersects = raycaster.intersectObjects(voxelMeshGroupRef.current.children, true);
-          if (intersects.length > 0 && intersects[0].distance < 6.0) {
+          if (intersects.length > 0 && intersects[0].distance < 7.0) {
             const hit = intersects[0];
             const localPoint = voxelMeshGroupRef.current.worldToLocal(hit.point.clone());
             const vx = Math.round(localPoint.x / VOXEL_SIZE_METERS);
@@ -248,7 +271,7 @@ export const MicroVoxelStudio: React.FC<MicroVoxelStudioProps> = ({ onCollectLoo
           }
         }
       } else if (cameraRef.current) {
-        // Orbit Camera
+        // Orbit Camera Mode
         const { theta, phi, radius } = cameraAngle.current;
         const cx = radius * Math.sin(phi) * Math.sin(theta);
         const cy = radius * Math.cos(phi);
@@ -288,7 +311,7 @@ export const MicroVoxelStudio: React.FC<MicroVoxelStudioProps> = ({ onCollectLoo
       const positionsByMat = new Map<VoxelMaterial, number[]>();
 
       meshResult.quads.forEach((q) => {
-        // Skip hidden non-loot voxels in X-Ray mode to reveal hidden wiring & medical packs!
+        // X-Ray Mode: culled exterior non-loot walls
         if (currentTool === 'xray') {
           const isLoot = q.material === VoxelMaterial.COPPER_WIRING || q.material === VoxelMaterial.MED_CACHE;
           if (!isLoot && Math.random() < 0.85) return;
@@ -303,7 +326,7 @@ export const MicroVoxelStudio: React.FC<MicroVoxelStudioProps> = ({ onCollectLoo
         const v0 = new THREE.Vector3(p0[0] * scale, p0[1] * scale, p0[2] * scale);
         const v1 = new THREE.Vector3((p0[0] + du[0]) * scale, (p0[1] + du[1]) * scale, (p0[2] + du[2]) * scale);
         const v2 = new THREE.Vector3((p0[0] + du[0] + dv[0]) * scale, (p0[1] + du[1] + dv[1]) * scale, (p0[2] + du[2] + dv[2]) * scale);
-        const v3 = new THREE.Vector3((p0[0] + dv[0]) * scale, (p0[1] + dv[1]) * scale, (p0[2] + dv[2]) * scale);
+        const v3 = new THREE.Vector3((p0[0] + dv[0]) * scale, (p0[1] + dv[1]) * scale, (p0[2] + du[2]) * scale);
 
         let quadPositions: number[];
         if (q.normalSign > 0) {
@@ -354,7 +377,7 @@ export const MicroVoxelStudio: React.FC<MicroVoxelStudioProps> = ({ onCollectLoo
         group.add(mesh);
       });
     } else {
-      // RAW INDIVIDUAL VOXELS (UNOPTIMIZED - For benchmarking)
+      // Raw unoptimized cubes
       const boxGeo = new THREE.BoxGeometry(VOXEL_SIZE_METERS * 0.95, VOXEL_SIZE_METERS * 0.95, VOXEL_SIZE_METERS * 0.95);
       const chunk = chunkRef.current;
 
@@ -387,46 +410,70 @@ export const MicroVoxelStudio: React.FC<MicroVoxelStudioProps> = ({ onCollectLoo
     soundFx.playRadarPing(880);
   };
 
-  // Mouse drag & Look
-  const handlePointerDown = (e: React.PointerEvent) => {
-    if (viewMode === 'orbit') {
-      isDraggingRef.current = true;
-      prevMousePos.current = { x: e.clientX, y: e.clientY };
-    }
-  };
-
+  // Drag look
   const handlePointerMove = (e: React.PointerEvent) => {
+    if (!isDraggingRef.current) return;
+    const dx = e.movementX || (e.clientX - prevMousePos.current.x);
+    const dy = e.movementY || (e.clientY - prevMousePos.current.y);
+    prevMousePos.current = { x: e.clientX, y: e.clientY };
+
     if (viewMode === 'firstPerson') {
-      if (isDraggingRef.current) {
-        const dx = e.movementX || (e.clientX - prevMousePos.current.x);
-        const dy = e.movementY || (e.clientY - prevMousePos.current.y);
-        prevMousePos.current = { x: e.clientX, y: e.clientY };
-
-        fpsLook.current.yaw -= dx * 0.003;
-        fpsLook.current.pitch = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, fpsLook.current.pitch - dy * 0.003));
-      }
+      fpsLook.current.yaw -= dx * 0.003;
+      fpsLook.current.pitch = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, fpsLook.current.pitch - dy * 0.003));
     } else {
-      if (!isDraggingRef.current) return;
-      const dx = e.clientX - prevMousePos.current.x;
-      const dy = e.clientY - prevMousePos.current.y;
-      prevMousePos.current = { x: e.clientX, y: e.clientY };
-
       cameraAngle.current.theta -= dx * 0.008;
       cameraAngle.current.phi = Math.max(0.1, Math.min(Math.PI / 2.1, cameraAngle.current.phi + dy * 0.008));
     }
   };
 
-  const handlePointerUp = () => {
-    isDraggingRef.current = false;
-  };
+  // Trigger Mining or Placement at targeted position
+  const triggerVoxelAction = (isPlacement: boolean = false) => {
+    if (!cameraRef.current || !voxelMeshGroupRef.current) return;
 
-  const handleWheel = (e: React.WheelEvent) => {
-    if (viewMode === 'orbit') {
-      cameraAngle.current.radius = Math.max(4, Math.min(30, cameraAngle.current.radius + e.deltaY * 0.015));
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(
+      viewMode === 'firstPerson' ? new THREE.Vector2(0, 0) : new THREE.Vector2(0, 0),
+      cameraRef.current
+    );
+
+    const intersects = raycaster.intersectObjects(voxelMeshGroupRef.current.children, true);
+    if (intersects.length > 0) {
+      const hit = intersects[0];
+      const localPoint = voxelMeshGroupRef.current.worldToLocal(hit.point.clone());
+
+      const vx = Math.round(localPoint.x / VOXEL_SIZE_METERS);
+      const vy = Math.round(localPoint.y / VOXEL_SIZE_METERS);
+      const vz = Math.round(localPoint.z / VOXEL_SIZE_METERS);
+
+      if (!isPlacement && currentTool === 'drill') {
+        // Mine / Carve Sphere
+        const result = chunkRef.current.destroySphere(vx, vy, vz, brushSize);
+        soundFx.playHitSound();
+
+        if (result.destroyedCount > 0) {
+          setEditsHistory(prev => [...prev, { x: vx, y: vy, z: vz, mat: VoxelMaterial.AIR }]);
+          rebuild3DMesh();
+
+          result.lootFound.forEach(item => {
+            const pal = VOXEL_PALETTE[item.mat];
+            onCollectLoot(pal.name, item.count);
+            soundFx.playLootPickup();
+            try {
+              confetti({ particleCount: 50, spread: 70, origin: { y: 0.7 } });
+            } catch {}
+          });
+        }
+      } else if (isPlacement || currentTool === 'build') {
+        // Place Block
+        chunkRef.current.setVoxel(vx, vy, vz, selectedBuildMat);
+        soundFx.playRadarPing(700);
+        setEditsHistory(prev => [...prev, { x: vx, y: vy, z: vz, mat: selectedBuildMat }]);
+        rebuild3DMesh();
+      }
     }
   };
 
-  // Interactive Raycast Click for Mining/Drilling or Building
+  // Canvas Click
   const handleCanvasClick = (e: React.MouseEvent) => {
     if (!containerRef.current || !cameraRef.current || !sceneRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
@@ -445,13 +492,11 @@ export const MicroVoxelStudio: React.FC<MicroVoxelStudioProps> = ({ onCollectLoo
       if (intersects.length > 0) {
         const hit = intersects[0];
         const localPoint = voxelMeshGroupRef.current.worldToLocal(hit.point.clone());
-
         const vx = Math.round(localPoint.x / VOXEL_SIZE_METERS);
         const vy = Math.round(localPoint.y / VOXEL_SIZE_METERS);
         const vz = Math.round(localPoint.z / VOXEL_SIZE_METERS);
 
         if (currentTool === 'drill') {
-          // Drill Hole / Mine micro-voxels
           const result = chunkRef.current.destroySphere(vx, vy, vz, brushSize);
           soundFx.playHitSound();
 
@@ -459,18 +504,16 @@ export const MicroVoxelStudio: React.FC<MicroVoxelStudioProps> = ({ onCollectLoo
             setEditsHistory(prev => [...prev, { x: vx, y: vy, z: vz, mat: VoxelMaterial.AIR }]);
             rebuild3DMesh();
 
-            // Check if hidden copper/med caches were uncovered
             result.lootFound.forEach(item => {
               const pal = VOXEL_PALETTE[item.mat];
               onCollectLoot(pal.name, item.count);
               soundFx.playLootPickup();
               try {
-                confetti({ particleCount: 45, spread: 70, origin: { y: 0.7 } });
+                confetti({ particleCount: 50, spread: 70, origin: { y: 0.7 } });
               } catch {}
             });
           }
         } else if (currentTool === 'build') {
-          // Place Block
           chunkRef.current.setVoxel(vx, vy, vz, selectedBuildMat);
           soundFx.playRadarPing(700);
           setEditsHistory(prev => [...prev, { x: vx, y: vy, z: vz, mat: selectedBuildMat }]);
@@ -480,44 +523,169 @@ export const MicroVoxelStudio: React.FC<MicroVoxelStudioProps> = ({ onCollectLoo
     }
   };
 
-  // Export Full Godot 4 Project as .ZIP Archive!
+  // Export Godot 4 ZIP Archive
   const handleExportFullGodotZip = async () => {
     setIsExportingZip(true);
     try {
       const zip = new JSZip();
 
-      // 1. project.godot
       zip.file('project.godot', `; Engine configuration file for Godot 4.3 (.NET / C#)
 config_version=5
 
 [application]
-config/name="Chimeres_MicroVoxel_Godot4"
-config/description="Micro-Voxel Post-Apo Survival Game (1 voxel = 20cm) with Greedy Meshing"
+config/name="TerreZero_MicroVoxel_Godot4"
+config/description="Terre Zero - Micro-Voxel Post-Apo Survival Game (1 voxel = 20cm) with Greedy Meshing"
 run/main_scene="res://scenes/MainWorld.tscn"
 config/features=PackedStringArray("4.3", "C#", "Forward Plus")
 
 [dotnet]
-project/assembly_name="Chimeres_MicroVoxel_Godot4"
+project/assembly_name="TerreZero_MicroVoxel_Godot4"
 `);
 
-      // 2. Scripts
       const scripts = zip.folder('scripts');
       scripts?.file('VoxelChunk.cs', GODOT4_VOXEL_CHUNK_CS);
       scripts?.file('GreedyMesher.cs', GODOT4_GREEDY_MESHER_CS);
       scripts?.file('OSMVoxelizer.cs', GODOT4_OSM_VOXELIZER_CS);
+      scripts?.file('KalmanGpsFilter.cs', `using System;
+using Godot;
 
-      // 3. Shaders
+namespace TerreZero.GPS
+{
+    public class KalmanGpsFilter
+    {
+        private double _lat;
+        private double _lon;
+        private double _variance = -1.0;
+        private readonly double _qMetersPerSecond = 3.0;
+        private ulong _lastTimestampMs;
+        private double _currentSpeedKmH;
+
+        public double Latitude => _lat;
+        public double Longitude => _lon;
+        public double SpeedKmH => _currentSpeedKmH;
+
+        public void SetInitialPosition(double lat, double lon, double accuracyMeters)
+        {
+            _lat = lat;
+            _lon = lon;
+            _variance = accuracyMeters * accuracyMeters;
+            _lastTimestampMs = Time.GetTicksMsec();
+        }
+
+        public bool ProcessGpsSample(double rawLat, double rawLon, double accuracyMeters, ulong timestampMs, out string antiCheatWarning)
+        {
+            antiCheatWarning = null;
+            if (_variance < 0) { SetInitialPosition(rawLat, rawLon, accuracyMeters); return true; }
+            ulong dtMs = timestampMs - _lastTimestampMs;
+            if (dtMs <= 0) return false;
+            double dtSec = dtMs / 1000.0;
+
+            double rawDistMeters = ComputeHaversineDistance(_lat, _lon, rawLat, rawLon);
+            _currentSpeedKmH = (rawDistMeters / dtSec) * 3.6;
+            if (_currentSpeedKmH > 30.0 && rawDistMeters > 30.0)
+            {
+                antiCheatWarning = $"[ANTI-CHEAT] Vitesse anormale : {_currentSpeedKmH:F1} km/h (Max: 30 km/h)";
+                return false;
+            }
+
+            _variance += dtSec * _qMetersPerSecond * _qMetersPerSecond;
+            double rVariance = accuracyMeters * accuracyMeters;
+            double kGain = _variance / (_variance + rVariance);
+            _lat += kGain * (rawLat - _lat);
+            _lon += kGain * (rawLon - _lon);
+            _variance = (1.0 - kGain) * _variance;
+            _lastTimestampMs = timestampMs;
+            return true;
+        }
+
+        public static double ComputeHaversineDistance(double lat1, double lon1, double lat2, double lon2)
+        {
+            const double R = 6371000.0;
+            double dLat = (lat2 - lat1) * (Math.PI / 180.0);
+            double dLon = (lon2 - lon1) * (Math.PI / 180.0);
+            double a = Math.Sin(dLat / 2.0) * Math.Sin(dLat / 2.0) +
+                       Math.Cos(lat1 * (Math.PI / 180.0)) * Math.Cos(lat2 * (Math.PI / 180.0)) *
+                       Math.Sin(dLon / 2.0) * Math.Sin(dLon / 2.0);
+            return R * 2.0 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1.0 - a));
+        }
+    }
+}`);
+      scripts?.file('ChimereManager.cs', `using System;
+using Godot;
+
+namespace TerreZero.Chimeres
+{
+    public enum ChimereType { MechaDrone, BioMutant, RadioactiveBeast }
+    public enum BunkerRole { None, DefenseTurret, PowerGenerator, RadarScout, CargoMule }
+
+    public class ChimereInstance
+    {
+        public string Id { get; set; }
+        public string Name { get; set; }
+        public ChimereType Type { get; set; }
+        public int Level { get; set; }
+        public int CurrentHp { get; set; }
+        public int MaxHp { get; set; }
+        public BunkerRole AssignedRole { get; set; } = BunkerRole.None;
+
+        public float CalculateCaptureChance(float chipMultiplier = 1.0f)
+        {
+            float hpFactor = (1.0f - ((float)CurrentHp / MaxHp)) * 0.7f;
+            return Mathf.Clamp((0.25f + hpFactor) * chipMultiplier, 0.05f, 0.95f);
+        }
+    }
+}`);
+      scripts?.file('BunkerManager.cs', `using System;
+using Godot;
+
+namespace TerreZero.Bunker
+{
+    public class BunkerData
+    {
+        public bool IsAnchored { get; set; } = false;
+        public double AnchorLat { get; set; }
+        public double AnchorLon { get; set; }
+        public int EnergyLevelKW { get; set; } = 40;
+        public int RawScrap { get; set; } = 45;
+        public int RefinedTitaniumPlates { get; set; } = 8;
+        public int ElectronicCircuits { get; set; } = 12;
+
+        public bool AnchorHome(double lat, double lon)
+        {
+            AnchorLat = lat; AnchorLon = lon; IsAnchored = true;
+            GD.Print($"[BUNKER] Abri ancré aux coordonnées : {lat:F5}, {lon:F5}");
+            return true;
+        }
+    }
+}`);
+      scripts?.file('DeltaSyncManager.cs', `using System;
+using System.Collections.Generic;
+using System.Text.Json;
+using Godot;
+
+namespace TerreZero.Network
+{
+    public class VoxelDeltaEvent
+    {
+        public string h3_index { get; set; }
+        public int[] chunk_coords { get; set; }
+        public int[] local_voxel { get; set; }
+        public string action { get; set; }
+        public byte material_id { get; set; }
+        public string player_id { get; set; }
+    }
+}`);
+
       const shaders = zip.folder('shaders');
       shaders?.file('retro_voxel.gdshader', `shader_type spatial;
-render_mode blend_mix, depth_draw_opaque, cull_back, diffuse_toon, specular_toon;
+render_mode blend_mix, depth_draw_opaque, cull_back, diffuse_toon;
 void fragment() {
     ALBEDO = COLOR.rgb;
     ROUGHNESS = 0.85;
 }
 `);
 
-      // 4. README
-      zip.file('README_GODOT.md', `# Projet Godot 4 (C# / .NET) : Chimères Micro-Voxel
+      zip.file('README_GODOT.md', `# Projet Godot 4 (C# / .NET) : Terre Zéro (Micro-Voxel 20cm)
 1. Ouvrez Godot Engine 4.3 .NET.
 2. Cliquez sur 'Importer' et sélectionnez 'project.godot'.
 3. Cliquez sur 'Build' (C# .NET) puis appuyez sur F5 pour jouer !
@@ -527,7 +695,7 @@ void fragment() {
       const url = URL.createObjectURL(content);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'Godot4_Chimeres_MicroVoxel_Project.zip';
+      a.download = 'Godot4_TerreZero_MicroVoxel_Project.zip';
       a.click();
       URL.revokeObjectURL(url);
       soundFx.playCaptureSuccess();
@@ -548,9 +716,9 @@ void fragment() {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-lg font-bold font-tech text-white">Moteur Micro-Voxel Godot 4 (Minecraft 20cm)</h2>
+              <h2 className="text-lg font-bold font-tech text-white">Terre Zéro : Moteur Micro-Voxel Godot 4 (20cm)</h2>
               <span className="text-[10px] bg-orange-950 text-orange-300 border border-orange-800 px-2 py-0.5 rounded font-mono">
-                1 Voxel = 20cm · Greedy Meshing
+                1 Voxel = 20cm · Greedy Meshing (-98% triangles)
               </span>
             </div>
             <p className="text-xs text-slate-400 font-mono">
@@ -581,28 +749,28 @@ void fragment() {
             <div className="flex items-center gap-1.5 bg-slate-950/90 backdrop-blur border border-slate-800 p-1 rounded-xl shadow-lg pointer-events-auto">
               <button
                 onClick={() => {
-                  setViewMode('orbit');
-                  soundFx.playRadarPing(600);
-                }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-tech font-bold flex items-center gap-1.5 transition-all ${
-                  viewMode === 'orbit' ? 'bg-orange-500 text-slate-950' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                <Eye className="w-3.5 h-3.5" />
-                <span>Vue Orbite</span>
-              </button>
-
-              <button
-                onClick={() => {
                   setViewMode('firstPerson');
                   soundFx.playRadarPing(800);
                 }}
                 className={`px-3 py-1.5 rounded-lg text-xs font-tech font-bold flex items-center gap-1.5 transition-all ${
-                  viewMode === 'firstPerson' ? 'bg-orange-500 text-slate-950' : 'text-slate-400 hover:text-white'
+                  viewMode === 'firstPerson' ? 'bg-orange-500 text-slate-950 shadow' : 'text-slate-400 hover:text-white'
                 }`}
               >
                 <Gamepad2 className="w-3.5 h-3.5" />
                 <span>Jouer (Z/Q/S/D)</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setViewMode('orbit');
+                  soundFx.playRadarPing(600);
+                }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-tech font-bold flex items-center gap-1.5 transition-all ${
+                  viewMode === 'orbit' ? 'bg-orange-500 text-slate-950 shadow' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <Eye className="w-3.5 h-3.5" />
+                <span>Vue Libre</span>
               </button>
             </div>
 
@@ -651,7 +819,7 @@ void fragment() {
               </button>
             </div>
 
-            {/* Optimization & Wireframe Switchers */}
+            {/* Optimization Switch */}
             <div className="flex items-center gap-2 pointer-events-auto">
               <button
                 onClick={() => setUseGreedyMeshing(!useGreedyMeshing)}
@@ -674,24 +842,61 @@ void fragment() {
               prevMousePos.current = { x: e.clientX, y: e.clientY };
             }}
             onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onWheel={handleWheel}
+            onPointerUp={() => {
+              isDraggingRef.current = false;
+            }}
             onClick={handleCanvasClick}
           />
 
-          {/* First-Person HUD Crosshair & Controls Overlay */}
+          {/* First-Person HUD Crosshair & On-Screen Touch / Action Controls */}
           {viewMode === 'firstPerson' && (
             <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-4">
               {/* Crosshair Center */}
               <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex items-center justify-center">
-                <Crosshair className="w-6 h-6 text-cyan-400 opacity-80" />
+                <Crosshair className="w-6 h-6 text-cyan-400 opacity-90 animate-pulse" />
               </div>
 
-              <div />
+              {/* Top Left Navigation Helper */}
+              <div className="bg-slate-950/80 backdrop-blur border border-slate-800 rounded-xl p-2 self-start text-[11px] font-mono text-slate-300 pointer-events-auto">
+                <div>🕹️ <strong>Z / Q / S / D :</strong> Déplacement</div>
+                <div>⛏️ <strong>Clic :</strong> Forer / Miner</div>
+                <div>📡 <strong>F :</strong> Scanner X-Ray</div>
+              </div>
 
-              {/* Bottom Hotbar (Minecraft-style 1-9) */}
-              <div className="flex items-center justify-center">
-                <div className="bg-slate-950/90 border-2 border-slate-700 rounded-2xl p-1.5 flex items-center gap-1 shadow-2xl pointer-events-auto">
+              {/* Bottom Touch Controls & Hotbar */}
+              <div className="flex flex-col items-center gap-2">
+                {/* Quick Action Buttons for Touch / Mobile */}
+                <div className="flex items-center gap-2 pointer-events-auto">
+                  <button
+                    onClick={() => triggerVoxelAction(false)}
+                    className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-tech font-bold text-xs rounded-xl shadow-lg active:scale-95 flex items-center gap-1.5"
+                  >
+                    <Flame className="w-4 h-4" />
+                    <span>Forer / Miner</span>
+                  </button>
+
+                  <button
+                    onClick={() => triggerVoxelAction(true)}
+                    className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white font-tech font-bold text-xs rounded-xl shadow-lg active:scale-95 flex items-center gap-1.5"
+                  >
+                    <Hammer className="w-4 h-4" />
+                    <span>Poser Bloc</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setCurrentTool(prev => (prev === 'xray' ? 'drill' : 'xray'));
+                      soundFx.playRadarPing(900);
+                    }}
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-tech font-bold text-xs rounded-xl shadow-lg active:scale-95 flex items-center gap-1.5"
+                  >
+                    <Radio className="w-4 h-4" />
+                    <span>Scanner (F)</span>
+                  </button>
+                </div>
+
+                {/* Hotbar (1-9) */}
+                <div className="bg-slate-950/90 border-2 border-slate-700 rounded-2xl p-1.5 flex items-center gap-1 shadow-2xl pointer-events-auto overflow-x-auto max-w-full">
                   {[
                     { id: 1, mat: VoxelMaterial.CONCRETE, name: 'Béton', icon: '🧱' },
                     { id: 2, mat: VoxelMaterial.BRICK, name: 'Brique', icon: '🧱' },
@@ -709,14 +914,14 @@ void fragment() {
                         setSelectedBuildMat(slot.mat);
                         setCurrentTool('build');
                       }}
-                      className={`w-11 h-11 rounded-xl flex flex-col items-center justify-center text-xs transition-all relative ${
+                      className={`w-10 h-10 rounded-xl flex flex-col items-center justify-center text-xs transition-all relative ${
                         selectedBuildMat === slot.mat && currentTool === 'build'
                           ? 'bg-amber-500 text-slate-950 font-bold border-2 border-white scale-110 shadow-lg'
                           : 'bg-slate-900 text-slate-300 border border-slate-800 hover:bg-slate-800'
                       }`}
                     >
-                      <span className="text-base">{slot.icon}</span>
-                      <span className="text-[9px] font-mono absolute bottom-0.5 right-1 text-slate-400">{slot.id}</span>
+                      <span className="text-sm">{slot.icon}</span>
+                      <span className="text-[8px] font-mono absolute bottom-0.5 right-1 text-slate-400">{slot.id}</span>
                     </button>
                   ))}
                 </div>
@@ -724,7 +929,7 @@ void fragment() {
             </div>
           )}
 
-          {/* Bottom Live Diagnostic Bar */}
+          {/* Bottom Diagnostic Bar */}
           <div className="absolute bottom-3 left-3 right-3 bg-slate-950/90 backdrop-blur-md border border-slate-800 rounded-xl p-2.5 flex items-center justify-between text-xs font-mono">
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-1.5">
@@ -733,18 +938,16 @@ void fragment() {
               </div>
               <span>→</span>
               <div className="flex items-center gap-1.5">
-                <span className="text-slate-400">Après Greedy Meshing :</span>
+                <span className="text-slate-400">Greedy Meshing :</span>
                 <span className="text-emerald-400 font-bold">{meshingStats?.greedyTrianglesCount.toLocaleString() || '0'}</span>
               </div>
               <span className="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded-full font-bold">
-                -{meshingStats?.reductionPercentage || 0}% de polygones GPU
+                -{meshingStats?.reductionPercentage || 0}% GPU
               </span>
             </div>
 
             <div className="text-slate-400 text-[11px] hidden sm:block">
-              {viewMode === 'firstPerson'
-                ? '🎮 Z/Q/S/D pour marcher · Clic gauche pour forer · Clic droit pour poser'
-                : '🔥 Cliquez sur la façade pour percer et révéler le câblage'}
+              {currentTool === 'drill' ? '🔥 Visez et cliquez pour forer des brèches' : currentTool === 'xray' ? '📡 Scanner actif : Cuivre (Orange) & Trousses (Vert)' : '🔨 Pose de blocs voxel'}
             </div>
           </div>
         </div>

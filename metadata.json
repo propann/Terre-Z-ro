@@ -1,8 +1,6 @@
 {
-  "name": "Chimères : Moteur GPS & Parseur OSM Post-Apo",
-  "description": "Prototype jouable et parseur OpenStreetMap (OSM) pour jeu GPS post-apocalyptique avec extraction Overpass, rendu voxel 3D, système H3, boucle Nomade/Sédentaire et capture de Chimères.",
+  "name": "Terre Zéro : Survie Géolocalisée Micro-Voxel & Godot 4",
+  "description": "Jeu mobile et web de survie post-apocalyptique dans le monde réel (1 voxel = 20cm). Génération procédurale déterministe OpenStreetMap, Greedy Meshing Godot 4, streaming spatial Uber H3, filtre de Kalman GPS et capture de Chimères.",
   "permissions": [],
-  "capabilities": [
-    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
-  ]
+  "capabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

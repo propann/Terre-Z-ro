@@ -11,11 +11,12 @@ import {
   BookOpen,
   MapPin,
   ListOrdered,
-  Truck
+  Truck,
+  Footprints
 } from 'lucide-react';
 import { soundFx } from '../services/soundFx';
 
-export type AppViewMode = 'nomad' | 'map3d' | 'microvoxel' | 'bunker' | 'chimeres' | 'studio' | 'roadmap';
+export type AppViewMode = 'nomad' | 'map3d' | 'microvoxel' | 'bunker' | 'chimeres' | 'vehicles' | 'evolution' | 'progression' | 'studio' | 'roadmap';
 
 interface HeaderProps {
   currentMode: AppViewMode;
@@ -48,20 +49,20 @@ export const Header: React.FC<HeaderProps> = ({
     <header className="bg-slate-900/95 backdrop-blur-md border-b border-slate-800 px-3 py-2 flex items-center justify-between z-30 select-none shadow-lg">
       {/* Brand Title */}
       <div className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-red-600 flex items-center justify-center text-lg shadow-[0_0_12px_rgba(245,158,11,0.3)]">
+        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center text-lg shadow-[0_0_12px_rgba(249,115,22,0.4)]">
           ☢️
         </div>
         <div>
           <div className="flex items-center gap-1.5">
             <h1 className="font-tech text-base font-bold text-white tracking-wider flex items-center gap-1.5">
-              <span>CHIMÈRES</span>
-              <span className="text-xs bg-red-950 text-red-400 border border-red-800 px-1.5 py-0.2 rounded font-mono font-normal">
-                POST-APO GPS
+              <span>TERRE ZÉRO</span>
+              <span className="text-xs bg-orange-950 text-orange-400 border border-orange-800 px-1.5 py-0.2 rounded font-mono font-normal">
+                GODOT 4 · 20CM
               </span>
             </h1>
           </div>
           <div className="text-[10px] text-slate-400 font-mono flex items-center gap-2">
-            <span>Survie Géolocalisée</span>
+            <span>Survie Géolocalisée Micro-Voxel</span>
             <span className="text-amber-400">Niv. {level} ({xp} XP)</span>
           </div>
         </div>
@@ -127,6 +128,51 @@ export const Header: React.FC<HeaderProps> = ({
         >
           <Home className="w-3.5 h-3.5" />
           <span>Bunker (Maison)</span>
+        </button>
+
+        <button
+          onClick={() => {
+            soundFx.playRadarPing();
+            onSelectMode('vehicles');
+          }}
+          className={`px-3 py-1.5 rounded-xl text-xs font-tech font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all ${
+            currentMode === 'vehicles'
+              ? 'bg-amber-500 text-slate-950 shadow-md scale-102'
+              : 'text-slate-400 hover:text-white hover:bg-slate-900'
+          }`}
+        >
+          <Truck className="w-3.5 h-3.5" />
+          <span>Garage Véhicules</span>
+        </button>
+
+        <button
+          onClick={() => {
+            soundFx.playRadarPing();
+            onSelectMode('evolution');
+          }}
+          className={`px-3 py-1.5 rounded-xl text-xs font-tech font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all ${
+            currentMode === 'evolution'
+              ? 'bg-purple-500 text-slate-950 shadow-md scale-102'
+              : 'text-slate-400 hover:text-white hover:bg-slate-900'
+          }`}
+        >
+          <Sparkles className="w-3.5 h-3.5" />
+          <span>Labo Chimères</span>
+        </button>
+
+        <button
+          onClick={() => {
+            soundFx.playRadarPing();
+            onSelectMode('progression');
+          }}
+          className={`px-3 py-1.5 rounded-xl text-xs font-tech font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all ${
+            currentMode === 'progression'
+              ? 'bg-amber-400 text-slate-950 shadow-md scale-102'
+              : 'text-slate-400 hover:text-white hover:bg-slate-900'
+          }`}
+        >
+          <Footprints className="w-3.5 h-3.5" />
+          <span>Progression & Implants</span>
         </button>
 
         <button

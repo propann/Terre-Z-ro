@@ -14,8 +14,13 @@ import {
   BatteryCharging,
   PlusCircle,
   Check,
-  Flame
+  Flame,
+  Cpu,
+  Radio,
+  RefreshCw,
+  Box
 } from 'lucide-react';
+import confetti from 'canvas-confetti';
 
 interface BunkerBaseViewProps {
   bunker: BunkerState;
@@ -36,9 +41,50 @@ export const BunkerBaseView: React.FC<BunkerBaseViewProps> = ({
   onAssignChimereRole,
   onUpgradeBunkerFacility
 }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'storage' | 'crafting' | 'chimeres'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'refinery' | 'crafting' | 'storage' | 'chimeres'>('overview');
+  const [refineFeedback, setRefineFeedback] = useState<string | null>(null);
 
-  // Available Crafting Recipes
+  // Material Refinery Recipes (Concasseur & Fonderie)
+  const refineryProcesses = [
+    {
+      id: 'refine-armor',
+      title: 'Plaques de Blindage Laminé',
+      inputName: 'Ferraille brute (x4)',
+      outputName: 'Plaque de Blindage Titane (x1)',
+      icon: '🛡️',
+      desc: 'Fonderie thermique : transforme les débris industriels en blindage structurel pour bunker et véhicules.',
+      inputFamily: 'Métaux & Conducteurs'
+    },
+    {
+      id: 'refine-copper',
+      title: 'Bobines Électromagnétiques',
+      inputName: 'Câblage Cuivre (x3)',
+      outputName: 'Bobine Électromagnétique (x1)',
+      icon: '⚡',
+      desc: 'Tréfilage et isolation : indispensable pour les pièges IEM, tourelles et conduits d’énergie.',
+      inputFamily: 'Métaux & Conducteurs'
+    },
+    {
+      id: 'refine-polymer',
+      title: 'Polymère Synthétique & Carburant',
+      inputName: 'Résines Mutées (x3)',
+      outputName: 'Bidon de Carburant Raffiné (x1)',
+      icon: '🧪',
+      desc: 'Craquage chimique des condensats toxiques et résines récoltées près des zones aquatiques / stations.',
+      inputFamily: 'Bio-chimique & Carburant'
+    },
+    {
+      id: 'refine-chips',
+      title: 'Puces de Contrôle Recyclées',
+      inputName: 'Circuits Imprimés Brûlés (x2)',
+      outputName: 'Module de Piratage IEM (x1)',
+      icon: '🪤',
+      desc: 'Désoudage et reprogrammation pour fabriquer des modules de capture de Chimères.',
+      inputFamily: 'Technologie & Récup’'
+    }
+  ];
+
+  // Available Crafting Recipes (Établi d'Assemblage)
   const craftingRecipes = [
     {
       id: 'craft-stim',
@@ -72,355 +118,336 @@ export const BunkerBaseView: React.FC<BunkerBaseViewProps> = ({
         id: `trap-${Date.now()}`,
         name: 'Piège à Impulsion IEM',
         category: 'trap' as const,
-        weight: 1.0,
+        weight: 1.2,
         quantity: 1,
         rarity: 'rare' as const,
         icon: '🪤',
-        description: 'Piège de capture électromagnétique.'
+        description: 'Module de capture électromagnétique.'
       },
       cost: [
-        { name: 'Piles Haute Densité', itemId: 'elec', count: 1 },
-        { name: 'Ferraille Renforcée', itemId: 'scrap', count: 2 }
+        { name: 'Composants Électroniques', itemId: 'elec', count: 2 },
+        { name: 'Câblage Cuivre', itemId: 'copper', count: 1 }
       ]
     },
     {
-      id: 'craft-bag',
-      name: 'Extension Sac à Dos Tactique (+5kg)',
-      category: 'module' as const,
-      icon: '🎒',
-      description: 'Augmente la capacité d’emport de votre sac.',
+      id: 'craft-turret',
+      name: 'Tourelle Automatisée de Défense',
+      category: 'weapon' as const,
+      icon: '🔫',
+      description: 'Défend automatiquement l’abri contre les raids (+40 Défense).',
       result: {
-        id: `bag-${Date.now()}`,
-        name: 'Extension Sac à Dos Tactique',
-        category: 'module' as const,
-        weight: 0.5,
+        id: `turret-${Date.now()}`,
+        name: 'Tourelle de Défense',
+        category: 'weapon' as const,
+        weight: 8.0,
         quantity: 1,
         rarity: 'military' as const,
-        icon: '🎒',
-        description: 'Poches molletonnées haute résistance.'
+        icon: '🔫',
+        description: 'Tourelle de sentinelle automatisée.'
       },
       cost: [
-        { name: 'Ferraille Renforcée', itemId: 'scrap', count: 3 },
-        { name: 'Plaques de Blindage', itemId: 'wpn', count: 1 }
+        { name: 'Plaque de Blindage', itemId: 'scrap', count: 3 },
+        { name: 'Composants Électroniques', itemId: 'elec', count: 2 }
       ]
     }
   ];
 
-  const handleCraft = (recipe: typeof craftingRecipes[0]) => {
-    soundFx.playLootPickup();
-    onCraftItem(recipe.id, recipe.result, recipe.cost);
+  const handleRefine = (processTitle: string) => {
+    soundFx.playHitSound();
+    setRefineFeedback(`⚙️ Raffinage réussi : ${processTitle}`);
+    setTimeout(() => setRefineFeedback(null), 3000);
+    try {
+      confetti({ particleCount: 40, spread: 60, origin: { y: 0.6 } });
+    } catch {}
   };
 
   return (
     <div className="flex flex-col h-full bg-slate-950 text-slate-100 p-4 select-none overflow-y-auto">
-      {/* Header Bunker Banner */}
-      <div className="bg-gradient-to-r from-amber-950/40 via-slate-900 to-slate-950 border border-amber-500/30 rounded-2xl p-4 mb-4 flex items-center justify-between shadow-xl">
+      {/* Top Banner */}
+      <div className="bg-gradient-to-r from-amber-950/40 via-slate-900 to-slate-950 border border-amber-500/40 rounded-2xl p-4 mb-4 flex items-center justify-between shadow-xl">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-amber-500/20 border border-amber-500 flex items-center justify-center text-2xl shadow-[0_0_15px_rgba(245,158,11,0.2)]">
-            🏛️
+          <div className="w-12 h-12 rounded-xl bg-amber-500/20 border border-amber-500 flex items-center justify-center text-2xl shadow-[0_0_15px_rgba(245,158,11,0.3)]">
+            🏠
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-lg font-bold font-tech text-white">{bunker.name}</h2>
+              <h2 className="text-lg font-bold font-tech text-white">Bunker & Raffinerie : Terre Zéro</h2>
               <span className="text-[10px] bg-amber-950 text-amber-300 border border-amber-800 px-2 py-0.5 rounded font-mono">
-                Niveau {bunker.level}
+                Ancrage Domicile · Niveau {bunker.level}
               </span>
             </div>
             <p className="text-xs text-slate-400 font-mono">
-              Base Sédentaire · Coordonnées sécurisées · Générateur {bunker.energy}/{bunker.maxEnergy} kW/h
+              Système de matière en boucle fermée : Récolte IRL $\rightarrow$ Concasseur & Fonderie $\rightarrow$ Établi d’assemblage.
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <div className="text-right hidden sm:block">
-            <div className="text-xs font-mono text-emerald-400 font-bold">Zone Sécurisée</div>
-            <div className="text-[11px] text-slate-400">0% Radiations</div>
+        {/* Energy & Defense Indicators */}
+        <div className="flex items-center gap-3">
+          <div className="bg-slate-900 border border-slate-800 px-3 py-2 rounded-xl text-center">
+            <div className="text-[10px] text-slate-400 font-mono">Énergie Hub</div>
+            <div className="text-amber-400 font-tech font-bold text-sm flex items-center justify-center gap-1">
+              <Zap className="w-3.5 h-3.5" />
+              <span>{bunker.energy} kW</span>
+            </div>
+          </div>
+
+          <div className="bg-slate-900 border border-slate-800 px-3 py-2 rounded-xl text-center">
+            <div className="text-[10px] text-slate-400 font-mono">Défense Abri</div>
+            <div className="text-cyan-400 font-tech font-bold text-sm flex items-center justify-center gap-1">
+              <Shield className="w-3.5 h-3.5" />
+              <span>{bunker.defenses.barricadeHp} PTS</span>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Navigation Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-800 pb-3 mb-4 overflow-x-auto">
-        <button
-          onClick={() => setActiveTab('overview')}
-          className={`px-4 py-2 rounded-xl text-xs font-tech font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all ${
-            activeTab === 'overview'
-              ? 'bg-amber-500 text-slate-950 shadow-md'
-              : 'bg-slate-900 text-slate-400 hover:text-white'
-          }`}
-        >
-          <Home className="w-4 h-4" />
-          Vue d'Ensemble
-        </button>
-
-        <button
-          onClick={() => setActiveTab('storage')}
-          className={`px-4 py-2 rounded-xl text-xs font-tech font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all ${
-            activeTab === 'storage'
-              ? 'bg-amber-500 text-slate-950 shadow-md'
-              : 'bg-slate-900 text-slate-400 hover:text-white'
-          }`}
-        >
-          <Package className="w-4 h-4" />
-          Coffre & Déchargement ({bunker.chestStorage.length})
-        </button>
-
-        <button
-          onClick={() => setActiveTab('crafting')}
-          className={`px-4 py-2 rounded-xl text-xs font-tech font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all ${
-            activeTab === 'crafting'
-              ? 'bg-amber-500 text-slate-950 shadow-md'
-              : 'bg-slate-900 text-slate-400 hover:text-white'
-          }`}
-        >
-          <Hammer className="w-4 h-4" />
-          Atelier d'Établi
-        </button>
-
-        <button
-          onClick={() => setActiveTab('chimeres')}
-          className={`px-4 py-2 rounded-xl text-xs font-tech font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all ${
-            activeTab === 'chimeres'
-              ? 'bg-amber-500 text-slate-950 shadow-md'
-              : 'bg-slate-900 text-slate-400 hover:text-white'
-          }`}
-        >
-          <Sparkles className="w-4 h-4" />
-          Sanctum des Chimères ({player.chimeres.length})
-        </button>
+      {/* Tabs */}
+      <div className="flex items-center gap-1.5 bg-slate-900 p-1.5 rounded-2xl border border-slate-800 mb-4 max-w-2xl">
+        {[
+          { id: 'overview', label: 'Vue Générale', icon: Home },
+          { id: 'refinery', label: 'Fonderie & Raffinerie', icon: Flame },
+          { id: 'crafting', label: 'Établi d’Assemblage', icon: Hammer },
+          { id: 'storage', label: 'Coffre de Stockage', icon: Package },
+          { id: 'chimeres', label: 'Sanctum Chimères', icon: Zap }
+        ].map(t => {
+          const Icon = t.icon;
+          const isActive = activeTab === t.id;
+          return (
+            <button
+              key={t.id}
+              onClick={() => {
+                setActiveTab(t.id as any);
+                soundFx.playRadarPing(700);
+              }}
+              className={`flex-1 py-2 px-3 rounded-xl text-xs font-tech font-bold transition-all flex items-center justify-center gap-1.5 ${
+                isActive ? 'bg-amber-500 text-slate-950 shadow-lg scale-102' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Icon className="w-4 h-4" />
+              <span>{t.label}</span>
+            </button>
+          );
+        })}
       </div>
 
-      {/* Tab Content */}
-      <div className="flex-1 overflow-y-auto">
-        {/* OVERVIEW TAB */}
-        {activeTab === 'overview' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Energy Core */}
-            <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <BatteryCharging className="w-5 h-5 text-amber-400" />
-                  <h3 className="text-sm font-bold font-tech text-white uppercase">Réseau Énergétique</h3>
-                </div>
-                <span className="text-xs font-mono text-amber-400 font-bold">
-                  +{player.chimeres.filter(c => c.role === 'energy').length * 15} kW (Chimères)
-                </span>
+      {/* TAB CONTENT */}
+      {/* 1. OVERVIEW */}
+      {activeTab === 'overview' && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center gap-2 text-amber-400 font-tech font-bold text-sm mb-2">
+                <Flame className="w-4 h-4" />
+                <span>1. Récolte Contextuelle (IRL)</span>
               </div>
-              <div className="w-full bg-slate-950 h-3 rounded-full overflow-hidden mb-2">
-                <div
-                  className="bg-amber-500 h-full rounded-full transition-all"
-                  style={{ width: `${(bunker.energy / bunker.maxEnergy) * 100}%` }}
-                />
-              </div>
-              <p className="text-xs text-slate-400">
-                Alimente le filtre à air, l'établi et le bouclier défensif. Affectez des Chimères mécaniques pour surcharger la production.
+              <p className="text-xs text-slate-400 leading-relaxed mb-3">
+                Chaque bâtiment OSM fournit des matières spécifiques : les rails pour l’acier et le cuivre, les pharmacies pour les composés bio-chimiques.
               </p>
             </div>
+            <button onClick={() => setActiveTab('refinery')} className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-amber-400 font-tech font-bold text-xs rounded-xl border border-slate-700">
+              Ouvrir la Fonderie →
+            </button>
+          </div>
 
-            {/* Defenses */}
-            <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <Shield className="w-5 h-5 text-cyan-400" />
-                  <h3 className="text-sm font-bold font-tech text-white uppercase">Système Défensif</h3>
-                </div>
-                <span className="text-xs font-mono text-cyan-400 font-bold">
-                  {bunker.defenses.turretCount} Tourelles actives
-                </span>
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center gap-2 text-cyan-400 font-tech font-bold text-sm mb-2">
+                <Hammer className="w-4 h-4" />
+                <span>2. Établi d’Assemblage</span>
               </div>
-              <p className="text-xs text-slate-400 mb-3">
-                Barricades en titane : <strong>{bunker.defenses.barricadeHp} / 500 PV</strong>. Protège vos réserves contre les attaques de mutants sauvages.
+              <p className="text-xs text-slate-400 leading-relaxed mb-3">
+                Combinez vos matières raffinées pour fabriquer des modules de capture IEM, stimpacks et tourelles de défense.
               </p>
-              <button
-                onClick={() => onUpgradeBunkerFacility('defenses')}
-                className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-cyan-300 font-tech font-bold text-xs rounded-xl border border-slate-700 transition-colors"
-              >
-                + Renforcer les Barricades & Tourelles
-              </button>
             </div>
-
-            {/* Voxel Base Expansion */}
-            <div className="md:col-span-2 bg-gradient-to-r from-slate-900 to-slate-950 border border-slate-800 rounded-2xl p-4 flex items-center justify-between">
-              <div>
-                <h4 className="text-sm font-bold text-white font-tech">Extension Modulaire Voxel du Bunker</h4>
-                <p className="text-xs text-slate-400 mt-1">
-                  Améliorez l'établi et débloquez de nouvelles pièces (Laboratoire Bio, Baie de Réparation Robotique).
-                </p>
-              </div>
-              <button
-                onClick={() => onUpgradeBunkerFacility('core')}
-                className="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl font-tech shadow-lg"
-              >
-                Améliorer (Niv. {bunker.level + 1})
-              </button>
-            </div>
+            <button onClick={() => setActiveTab('crafting')} className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-cyan-400 font-tech font-bold text-xs rounded-xl border border-slate-700">
+              Ouvrir l’Établi →
+            </button>
           </div>
-        )}
 
-        {/* STORAGE TAB */}
-        {activeTab === 'storage' && (
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center gap-2 text-emerald-400 font-tech font-bold text-sm mb-2">
+                <Zap className="w-4 h-4" />
+                <span>3. Sanctum des Chimères</span>
+              </div>
+              <p className="text-xs text-slate-400 leading-relaxed mb-3">
+                Assignez vos créatures apprivoisées : la Sentinelle foudre alimente le réseau (+15 kW), le Rôdeur garde l'entrée.
+              </p>
+            </div>
+            <button onClick={() => setActiveTab('chimeres')} className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-emerald-400 font-tech font-bold text-xs rounded-xl border border-slate-700">
+              Gérer les Chimères →
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 2. REFINERY & FOUNDRY */}
+      {activeTab === 'refinery' && (
+        <div className="space-y-4">
+          {refineFeedback && (
+            <div className="bg-emerald-950/80 border border-emerald-500/80 text-emerald-300 px-4 py-2.5 rounded-xl font-mono text-xs animate-fadeIn flex items-center justify-between">
+              <span>{refineFeedback}</span>
+              <Check className="w-4 h-4" />
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Player Backpack */}
-            <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col">
-              <div className="flex items-center justify-between mb-3 border-b border-slate-800 pb-2">
-                <span className="text-xs font-tech font-bold uppercase text-cyan-400">
-                  🎒 Sac à dos ({player.currentWeight.toFixed(1)} / {player.maxWeight} kg)
-                </span>
-                <span className="text-[11px] text-slate-400">{player.inventory.length} objets</span>
-              </div>
-
-              <div className="flex-1 overflow-y-auto space-y-2 max-h-72">
-                {player.inventory.length === 0 && (
-                  <div className="text-center py-8 text-xs text-slate-500 font-mono">Sac vide.</div>
-                )}
-                {player.inventory.map(item => (
-                  <div
-                    key={item.id}
-                    className="bg-slate-950 border border-slate-800 rounded-xl p-2.5 flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg">{item.icon}</span>
-                      <div>
-                        <div className="text-xs font-bold text-white">{item.name} x{item.quantity}</div>
-                        <div className="text-[10px] text-slate-400">{(item.weight * item.quantity).toFixed(1)} kg</div>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => onDepositToChest(item)}
-                      className="px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500 text-amber-300 hover:text-slate-950 text-xs font-tech font-bold rounded-lg border border-amber-500/40 transition-all"
-                    >
-                      Déposer ⬇️
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Bunker Safe Chest */}
-            <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col">
-              <div className="flex items-center justify-between mb-3 border-b border-slate-800 pb-2">
-                <span className="text-xs font-tech font-bold uppercase text-amber-400">
-                  🏛️ Coffre Sécurisé du Bunker ({bunker.chestStorage.length} objets)
-                </span>
-              </div>
-
-              <div className="flex-1 overflow-y-auto space-y-2 max-h-72">
-                {bunker.chestStorage.length === 0 && (
-                  <div className="text-center py-8 text-xs text-slate-500 font-mono">Coffre vide. Déposez vos ressources pour alléger votre sac.</div>
-                )}
-                {bunker.chestStorage.map(item => (
-                  <div
-                    key={item.id}
-                    className="bg-slate-950 border border-slate-800 rounded-xl p-2.5 flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg">{item.icon}</span>
-                      <div>
-                        <div className="text-xs font-bold text-white">{item.name} x{item.quantity}</div>
-                        <div className="text-[10px] text-slate-400">{item.description}</div>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => onWithdrawFromChest(item)}
-                      className="px-2.5 py-1 bg-cyan-500/20 hover:bg-cyan-500 text-cyan-300 hover:text-slate-950 text-xs font-tech font-bold rounded-lg border border-cyan-500/40 transition-all"
-                    >
-                      Prendre ⬆️
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* CRAFTING TAB */}
-        {activeTab === 'crafting' && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            {craftingRecipes.map(recipe => (
-              <div
-                key={recipe.id}
-                className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between"
-              >
+            {refineryProcesses.map(proc => (
+              <div key={proc.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between hover:border-amber-500/50 transition-all shadow-lg">
                 <div>
-                  <div className="flex items-center gap-2.5 mb-2">
-                    <span className="text-2xl">{recipe.icon}</span>
-                    <div>
-                      <h4 className="text-xs font-bold text-white font-tech">{recipe.name}</h4>
-                      <span className="text-[10px] text-amber-400 font-mono">Atelier Niv. {bunker.workbenchLevel}</span>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-2xl">{proc.icon}</span>
+                      <div>
+                        <h4 className="font-tech text-sm font-bold text-white">{proc.title}</h4>
+                        <span className="text-[10px] font-mono text-amber-400">{proc.inputFamily}</span>
+                      </div>
                     </div>
                   </div>
-                  <p className="text-xs text-slate-400 mb-3">{recipe.description}</p>
+
+                  <p className="text-xs text-slate-400 leading-relaxed mb-3">{proc.desc}</p>
+
+                  <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800 font-mono text-xs flex items-center justify-between mb-3">
+                    <span className="text-red-400">{proc.inputName}</span>
+                    <span>→</span>
+                    <span className="text-emerald-400 font-bold">{proc.outputName}</span>
+                  </div>
                 </div>
 
-                <div className="border-t border-slate-800 pt-3">
-                  <div className="text-[11px] font-mono text-slate-400 mb-2">
-                    Coût : {recipe.cost.map(c => `${c.name} x${c.count}`).join(', ')}
+                <button
+                  onClick={() => handleRefine(proc.title)}
+                  className="w-full py-2.5 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-tech font-bold text-xs rounded-xl shadow-lg transition-all active:scale-95 flex items-center justify-center gap-1.5"
+                >
+                  <Flame className="w-4 h-4" />
+                  <span>LANCER LE RAFFINAGE</span>
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 3. CRAFTING */}
+      {activeTab === 'crafting' && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {craftingRecipes.map(recipe => (
+            <div key={recipe.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between hover:border-cyan-500/50 transition-all shadow-lg">
+              <div>
+                <div className="flex items-center gap-2.5 mb-2">
+                  <span className="text-2xl">{recipe.icon}</span>
+                  <div>
+                    <h4 className="font-tech text-sm font-bold text-white">{recipe.name}</h4>
+                    <span className="text-[10px] font-mono text-cyan-400 uppercase">{recipe.category}</span>
                   </div>
+                </div>
+
+                <p className="text-xs text-slate-400 leading-relaxed mb-3">{recipe.description}</p>
+
+                <div className="space-y-1 mb-3">
+                  <div className="text-[10px] font-mono text-slate-400 uppercase">Matériaux requis :</div>
+                  {recipe.cost.map((c, i) => (
+                    <div key={i} className="text-xs font-mono bg-slate-950 px-2 py-1 rounded border border-slate-800 flex justify-between text-slate-300">
+                      <span>{c.name}</span>
+                      <span className="text-amber-400 font-bold">x{c.count}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <button
+                onClick={() => {
+                  onCraftItem(recipe.id, recipe.result, recipe.cost);
+                  soundFx.playLootPickup();
+                  try {
+                    confetti({ particleCount: 35, spread: 50, origin: { y: 0.6 } });
+                  } catch {}
+                }}
+                className="w-full py-2.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-tech font-bold text-xs rounded-xl shadow-lg transition-all active:scale-95 flex items-center justify-center gap-1.5"
+              >
+                <Hammer className="w-4 h-4" />
+                <span>ASSEMBLER</span>
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* 4. STORAGE */}
+      {activeTab === 'storage' && (
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-tech text-sm font-bold text-white uppercase">Coffre de Réserve du Bunker</h3>
+            <span className="text-xs font-mono text-slate-400">{bunker.chestStorage.length} / 40 Objets</span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2.5">
+            {bunker.chestStorage.length === 0 ? (
+              <div className="col-span-full py-12 text-center text-slate-500 font-mono text-xs">
+                Coffre vide. Déposez vos surplus de marche pour libérer du poids d’inventaire.
+              </div>
+            ) : (
+              bunker.chestStorage.map((item: Item) => (
+                <div key={item.id} className="bg-slate-950 border border-slate-800 rounded-xl p-3 flex flex-col items-center justify-between text-center group">
+                  <span className="text-2xl mb-1">{item.icon}</span>
+                  <div className="font-tech text-xs text-white font-bold truncate w-full">{item.name}</div>
+                  <span className="text-[10px] font-mono text-slate-400">x{item.quantity} · {item.weight} kg</span>
                   <button
-                    onClick={() => handleCraft(recipe)}
-                    className="w-full py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold font-tech text-xs rounded-xl shadow transition-all flex items-center justify-center gap-1.5"
+                    onClick={() => onWithdrawFromChest(item)}
+                    className="mt-2 w-full py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-mono rounded border border-slate-700"
                   >
-                    <Hammer className="w-3.5 h-3.5" />
-                    <span>Fabriquer</span>
+                    Retirer
                   </button>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 5. CHIMERES SANCTUM */}
+      {activeTab === 'chimeres' && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {player.chimeres.map(chimere => (
+              <div key={chimere.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between shadow-lg">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-3xl">{chimere.avatarIcon}</span>
+                    <div>
+                      <h4 className="font-tech text-sm font-bold text-white uppercase">{chimere.name}</h4>
+                      <span className="text-[10px] font-mono text-amber-400">Niveau {chimere.level} · {chimere.type === 'mechanical' ? 'Mécanique' : 'Bio-Mutée'}</span>
+                    </div>
+                  </div>
+                  <span className="text-xs bg-slate-950 text-cyan-400 border border-slate-800 px-2 py-0.5 rounded font-mono">
+                    Rôle : {chimere.role}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-4 gap-1.5 mt-2">
+                  {[
+                    { role: 'combat', label: 'Garde', icon: '🛡️' },
+                    { role: 'energy', label: '+15kW', icon: '⚡' },
+                    { role: 'tracking', label: 'Radar', icon: '📡' },
+                    { role: 'transport', label: '+10kg', icon: '🎒' }
+                  ].map(r => (
+                    <button
+                      key={r.role}
+                      onClick={() => onAssignChimereRole(chimere.id, r.role as ChimereRole)}
+                      className={`py-1.5 rounded-lg text-[10px] font-mono font-bold flex flex-col items-center transition-all ${
+                        chimere.role === r.role ? 'bg-amber-500 text-slate-950' : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
+                      }`}
+                    >
+                      <span>{r.icon}</span>
+                      <span>{r.label}</span>
+                    </button>
+                  ))}
                 </div>
               </div>
             ))}
           </div>
-        )}
-
-        {/* CHIMERES SANCTUM TAB */}
-        {activeTab === 'chimeres' && (
-          <div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {player.chimeres.length === 0 && (
-                <div className="col-span-full text-center py-12 text-xs text-slate-500 font-mono">
-                  Aucune Chimère capturée pour l'instant. Sortez en mode Nomade avec des pièges pour en capturer !
-                </div>
-              )}
-
-              {player.chimeres.map(chim => (
-                <div
-                  key={chim.id}
-                  className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between"
-                >
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-2xl">{chim.avatarIcon}</span>
-                        <div>
-                          <h4 className="text-xs font-bold text-white">{chim.name}</h4>
-                          <span className="text-[10px] text-slate-400 font-mono">
-                            {chim.type === 'mechanical' ? '⚙️ Mécanique' : '🧬 Bio-mutée'} · ATK {chim.attack}
-                          </span>
-                        </div>
-                      </div>
-                      <span className="text-xs font-mono font-bold text-amber-400">Niv. {chim.level}</span>
-                    </div>
-                    <p className="text-[11px] text-slate-400 italic mb-3">{chim.lore}</p>
-                  </div>
-
-                  <div className="border-t border-slate-800 pt-2">
-                    <label className="text-[10px] font-mono text-slate-400 block mb-1">Rôle Assigné au Bunker :</label>
-                    <select
-                      value={chim.role}
-                      onChange={(e) => onAssignChimereRole(chim.id, e.target.value as ChimereRole)}
-                      className="w-full bg-slate-950 border border-slate-700 text-xs text-slate-200 rounded-lg p-2 font-mono"
-                    >
-                      <option value="combat">🛡️ Défense du Bunker (Combat)</option>
-                      <option value="energy">⚡ Génération d'Énergie (+15 kW)</option>
-                      <option value="tracking">📡 Pistage de Ressources (+25m)</option>
-                      <option value="transport">🎒 Mule Cargo (+10 kg au sac)</option>
-                      <option value="idle">💤 Repos</option>
-                    </select>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };

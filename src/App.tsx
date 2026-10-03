@@ -25,13 +25,16 @@ import { BunkerBaseView } from './components/BunkerBaseView';
 import { OsmScriptStudio } from './components/OsmScriptStudio';
 import { MicroVoxelStudio } from './components/MicroVoxelStudio';
 import { RoadmapPhasesView } from './components/RoadmapPhasesView';
+import { VehicleCustomizerView } from './components/VehicleCustomizerView';
+import { ChimereEvolutionLab } from './components/ChimereEvolutionLab';
+import { CharacterProgressionView } from './components/CharacterProgressionView';
 import { ChimereCombatModal } from './components/ChimereCombatModal';
 import { InventoryModal } from './components/InventoryModal';
 import { QuickHelpModal } from './components/QuickHelpModal';
 
 export const App: React.FC = () => {
-  // Current view mode
-  const [currentMode, setCurrentMode] = useState<AppViewMode>('nomad');
+  // Current view mode (Default directly to the 3D Micro-Voxel Minecraft Game)
+  const [currentMode, setCurrentMode] = useState<AppViewMode>('microvoxel');
   const [isAudioOn, setIsAudioOn] = useState<boolean>(true);
 
   // Active Map Location (Default to Tour Eiffel Paris preset for instant rich OSM testing)
@@ -106,7 +109,15 @@ export const App: React.FC = () => {
       }
     ],
     chimeres: [],
-    distanceWalkedMeters: 140,
+    distanceWalkedMeters: 14200, // 14.2 km demo
+    masteryPoints: 4,
+    unlockedPerks: ['eng_t1'],
+    implants: {
+      ocularLevel: 1,
+      spinalInstalled: false,
+      cerebralInstalled: false,
+      dermalArmorLevel: 1
+    },
     scavengeCount: 0,
     credits: 150,
     level: 1,
@@ -590,6 +601,61 @@ export const App: React.FC = () => {
             onCraftItem={handleCraftItem}
             onAssignChimereRole={handleAssignChimereRole}
             onUpgradeBunkerFacility={handleUpgradeBunkerFacility}
+          />
+        )}
+
+        {/* MODE: VEHICLE CUSTOMIZATION & WORKSHOP */}
+        {currentMode === 'vehicles' && (
+          <VehicleCustomizerView
+            player={player}
+            onUpdateVehicle={(veh) => {
+              setPlayer(prev => ({ ...prev, activeVehicle: veh }));
+              showToast(`🏎️ Véhicule mis à jour : ${veh.name}`);
+            }}
+          />
+        )}
+
+        {/* MODE: CHIMERE EVOLUTION LAB */}
+        {currentMode === 'evolution' && (
+          <ChimereEvolutionLab
+            player={player}
+            onUpdateChimere={(chim) => {
+              setPlayer(prev => ({
+                ...prev,
+                chimeres: prev.chimeres.map(c => c.id === chim.id ? chim : c)
+              }));
+              showToast(`🧬 Chimère modifiée : ${chim.name}`);
+            }}
+          />
+        )}
+
+        {/* MODE: CHARACTER PROGRESSION & CYBERNETIC IMPLANTS */}
+        {currentMode === 'progression' && (
+          <CharacterProgressionView
+            player={player}
+            onUnlockPerk={(perkId, cost) => {
+              setPlayer(prev => ({
+                ...prev,
+                masteryPoints: (prev.masteryPoints || 0) - cost,
+                unlockedPerks: [...(prev.unlockedPerks || []), perkId]
+              }));
+              showToast(`🏆 Compétence débloquée : ${perkId}`);
+            }}
+            onUpgradeImplant={(implantType) => {
+              setPlayer(prev => {
+                const currentImplants = prev.implants || { ocularLevel: 1, spinalInstalled: false, cerebralInstalled: false, dermalArmorLevel: 1 };
+                let updated = { ...currentImplants };
+                if (implantType === 'ocular') updated.ocularLevel = Math.min(3, updated.ocularLevel + 1);
+                if (implantType === 'spinal') updated.spinalInstalled = true;
+                if (implantType === 'cerebral') updated.cerebralInstalled = true;
+                if (implantType === 'dermal') updated.dermalArmorLevel += 1;
+                return { ...prev, implants: updated };
+              });
+              showToast(`⚙️ Implant ${implantType} greffé avec succès !`);
+            }}
+            onRecoverDeathCrate={() => {
+              showToast('🎒 Sac de mort récupéré avec tout son minerai !');
+            }}
           />
         )}
 
