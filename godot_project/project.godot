@@ -1,13 +1,13 @@
 ; Engine configuration file for Godot 4.3 (C# / .NET)
-; Project: Chimères - Micro-Voxel Post-Apo Survival Game (1 voxel = 20cm)
+; Project: Terre Zéro - Micro-Voxel Post-Apocalyptic Survival Game
 
 config_version=5
 
 [application]
 
-config/name="Chimeres_MicroVoxel_Godot4"
-config/description="Minecraft-like Micro-Voxel Post-Apocalyptic GPS & OSM Survival Game with Greedy Meshing"
-config/tags=PackedStringArray("3d", "csharp", "voxel", "procedural", "osm")
+config/name="Terre Zéro"
+config/description="Jeu de survie post-apocalyptique géolocalisé en micro-voxels, généré depuis OpenStreetMap."
+config/tags=PackedStringArray("3d", "csharp", "voxel", "procedural", "osm", "survival")
 run/main_scene="res://scenes/MainWorld.tscn"
 config/features=PackedStringArray("4.3", "C#", "Forward Plus")
 config/icon="res://icon.svg"
@@ -21,7 +21,7 @@ window/stretch/aspect="expand"
 
 [dotnet]
 
-project/assembly_name="Chimeres_MicroVoxel_Godot4"
+project/assembly_name="TerreZero"
 
 [input]
 
