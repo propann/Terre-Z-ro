@@ -73,6 +73,28 @@ namespace TerreZero.World.Generation
         [JsonPropertyName("coordinates")]
         public JsonElement Coordinates { get; set; }
 
+        public Vector2[] ProjectLineString(GeoAnchor anchor)
+        {
+            if (!string.Equals(Type, "LineString", StringComparison.OrdinalIgnoreCase))
+                return Array.Empty<Vector2>();
+
+            if (Coordinates.ValueKind != JsonValueKind.Array)
+                return Array.Empty<Vector2>();
+
+            var points = new List<Vector2>(Coordinates.GetArrayLength());
+            foreach (var coordinate in Coordinates.EnumerateArray())
+            {
+                if (coordinate.ValueKind != JsonValueKind.Array || coordinate.GetArrayLength() < 2)
+                    continue;
+
+                double longitude = coordinate[0].GetDouble();
+                double latitude = coordinate[1].GetDouble();
+                points.Add(anchor.ToLocalMeters(latitude, longitude));
+            }
+
+            return points.ToArray();
+        }
+
         public Vector2[] ProjectOuterRing(GeoAnchor anchor)
         {
             if (!string.Equals(Type, "Polygon", StringComparison.OrdinalIgnoreCase))
