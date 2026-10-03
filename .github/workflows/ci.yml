@@ -42,8 +42,9 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.23'
-      - name: Download dependencies
-        run: go mod download
+          cache-dependency-path: godot_project/server_go/go.sum
+      - name: Resolve dependencies
+        run: go mod tidy
       - name: Vet
         run: go vet ./...
       - name: Tests
