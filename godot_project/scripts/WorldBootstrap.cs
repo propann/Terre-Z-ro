@@ -10,34 +10,36 @@ namespace TerreZero.World
     {
         [Export] public string DemoH3Index { get; set; } = "891fb466257ffff";
         [Export] public long DemoOsmId { get; set; } = 100001;
+        [Export] public string DemoBuildingType { get; set; } = "commercial";
         [Export] public string DemoAmenity { get; set; } = "pharmacy";
 
         private readonly ConcurrentQueue<VoxelDeltaEvent> _remoteDeltas = new();
-        private VoxelChunk _demoChunk;
+        private VoxelWorldGrid _world;
 
         public override void _Ready()
         {
             var container = GetNode<Node3D>("VoxelWorldContainer");
-            var packedChunk = GD.Load<PackedScene>("res://scenes/VoxelChunk.tscn");
-            _demoChunk = packedChunk.Instantiate<VoxelChunk>();
+            _world = new VoxelWorldGrid(container, DemoH3Index);
 
-            _demoChunk.Name = "DemoChunk_0_0_0";
-            _demoChunk.H3Index = DemoH3Index;
-            _demoChunk.ChunkCoord = Vector3I.Zero;
-            container.AddChild(_demoChunk);
-
+            // Empreinte volontairement supérieure à un chunk de 6,4 m :
+            // 20 x 30 m, 18 m de haut. Cela valide le découpage X/Y/Z.
             var generation = OSMVoxelizer.VoxelizeBuilding(
-                _demoChunk,
-                new Rect2(new Vector2(0.8f, 0.8f), new Vector2(4.8f, 4.8f)),
-                5.8f,
-                "commercial",
+                _world,
+                new Rect2(new Vector2(0.0f, 0.0f), new Vector2(20.0f, 30.0f)),
+                18.0f,
+                DemoBuildingType,
                 DemoAmenity,
                 DemoOsmId
             );
-            _demoChunk.RebuildMeshGreedy();
 
             DeltaSyncManager.RemoteDeltaReceived += OnRemoteDeltaReceived;
-            GD.Print($"[TERRE ZÉRO] zone prête h3={DemoH3Index} osm={DemoOsmId} seed={generation.Seed} étages={generation.Floors} pièces={generation.Rooms}");
+
+            GD.Print(
+                $"[TERRE ZÉRO] zone prête h3={DemoH3Index} " +
+                $"osm={DemoOsmId} seed={generation.Seed} " +
+                $"étages={generation.Floors} pièces={generation.Rooms} " +
+                $"chunks={generation.TouchedChunks}"
+            );
         }
 
         public override void _Process(double delta)
@@ -58,29 +60,30 @@ namespace TerreZero.World
 
         private void ApplyRemoteDelta(VoxelDeltaEvent delta)
         {
-            if (_demoChunk == null || delta.H3Index != _demoChunk.H3Index)
+            if (_world == null || delta.H3Index != DemoH3Index)
                 return;
 
             if (delta.ChunkCoords == null || delta.ChunkCoords.Length != 3 ||
                 delta.LocalVoxel == null || delta.LocalVoxel.Length != 3)
                 return;
 
-            var chunkCoord = new Vector3I(delta.ChunkCoords[0], delta.ChunkCoords[1], delta.ChunkCoords[2]);
-            if (chunkCoord != _demoChunk.ChunkCoord)
-                return;
+            var chunkCoord = new Vector3I(
+                delta.ChunkCoords[0],
+                delta.ChunkCoords[1],
+                delta.ChunkCoords[2]
+            );
+
+            var localVoxel = new Vector3I(
+                delta.LocalVoxel[0],
+                delta.LocalVoxel[1],
+                delta.LocalVoxel[2]
+            );
 
             var material = delta.Action == "DESTROY"
                 ? VoxelMaterial.Air
                 : (VoxelMaterial)delta.MaterialId;
 
-            _demoChunk.SetVoxel(
-                delta.LocalVoxel[0],
-                delta.LocalVoxel[1],
-                delta.LocalVoxel[2],
-                material,
-                trackEdit: false
-            );
-            _demoChunk.RebuildMeshGreedy();
+            _world.ApplyDelta(chunkCoord, localVoxel, material);
         }
     }
 }
