@@ -18,6 +18,8 @@ func TestValidH3(t *testing.T) {
 
 func TestValidateDelta(t *testing.T) {
 	valid := VoxelDelta{
+		WorldVersion: worldVersion,
+		GeneratorVersion: generatorVersion,
 		H3Index:    "891fb466257ffff",
 		ChunkCoord: [3]int{0, 0, 0},
 		LocalVoxel: [3]int{12, 3, 31},
@@ -32,6 +34,12 @@ func TestValidateDelta(t *testing.T) {
 	invalid.LocalVoxel[2] = 32
 	if err := validateDelta(invalid); err == nil {
 		t.Fatal("out-of-range voxel should be rejected")
+	}
+
+	wrongVersion := valid
+	wrongVersion.GeneratorVersion = generatorVersion - 1
+	if err := validateDelta(wrongVersion); err == nil {
+		t.Fatal("stale generator version should be rejected")
 	}
 }
 
