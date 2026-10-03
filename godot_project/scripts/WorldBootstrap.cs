@@ -52,6 +52,18 @@ namespace TerreZero.World
             if (!generatedRemoteWorld)
                 GenerateDemoWorld();
 
+            if (UseRemoteWorldData)
+            {
+                try
+                {
+                    await ReplayPersistentDeltasAsync();
+                }
+                catch (Exception ex)
+                {
+                    GD.PushWarning($"[TERRE ZÉRO] replay des deltas impossible : {ex.Message}");
+                }
+            }
+
             _world.UpdateVisibility(_player.GlobalPosition, StreamRadiusChunks);
             DeltaSyncManager.RemoteDeltaReceived += OnRemoteDeltaReceived;
         }
@@ -127,6 +139,29 @@ namespace TerreZero.World
             return true;
         }
 
+        private async System.Threading.Tasks.Task ReplayPersistentDeltasAsync()
+        {
+            using var client = new WorldDataClient(WorldApiBaseUrl);
+            CellDeltaPayload history = await client.GetDeltasAsync(DemoH3Index);
+
+            int applied = 0;
+            foreach (var delta in history.Deltas)
+            {
+                if (delta == null)
+                    continue;
+
+                if (ApplyDelta(delta, rebuildImmediately: false))
+                    applied++;
+            }
+
+            if (applied > 0)
+                _world.RebuildDirtyChunks();
+
+            GD.Print(
+                $"[TERRE ZÉRO] deltas persistants rejoués h3={DemoH3Index} count={applied}"
+            );
+        }
+
         private void GenerateDemoWorld()
         {
             var generation = OSMVoxelizer.VoxelizeBuilding(
@@ -179,7 +214,47 @@ namespace TerreZero.World
                 ? VoxelMaterial.Air
                 : (VoxelMaterial)delta.MaterialId;
 
-            _world.ApplyDelta(chunkCoord, localVoxel, material);
+            ApplyDelta(delta, rebuildImmediately: true);
+        }
+
+        private bool ApplyDelta(VoxelDeltaEvent delta, bool rebuildImmediately)
+        {
+            if (_world == null || delta.H3Index != DemoH3Index)
+                return false;
+
+            if (delta.ChunkCoords == null || delta.ChunkCoords.Length != 3 ||
+                delta.LocalVoxel == null || delta.LocalVoxel.Length != 3)
+                return false;
+
+            var chunkCoord = new Vector3I(
+                delta.ChunkCoords[0],
+                delta.ChunkCoords[1],
+                delta.ChunkCoords[2]
+            );
+
+            var localVoxel = new Vector3I(
+                delta.LocalVoxel[0],
+                delta.LocalVoxel[1],
+                delta.LocalVoxel[2]
+            );
+
+            var material = delta.Action == "DESTROY"
+                ? VoxelMaterial.Air
+                : (VoxelMaterial)delta.MaterialId;
+
+            var chunk = _world.GetOrCreateChunk(chunkCoord);
+            chunk.SetVoxel(
+                localVoxel.X,
+                localVoxel.Y,
+                localVoxel.Z,
+                material,
+                trackEdit: false
+            );
+
+            if (rebuildImmediately)
+                chunk.RebuildMeshGreedy();
+
+            return true;
         }
     }
 }
