@@ -26,17 +26,18 @@ namespace TerreZero.World
             _demoChunk.ChunkCoord = Vector3I.Zero;
             container.AddChild(_demoChunk);
 
-            OSMVoxelizer.VoxelizeBuilding(
+            var generation = OSMVoxelizer.VoxelizeBuilding(
                 _demoChunk,
                 new Rect2(new Vector2(0.8f, 0.8f), new Vector2(4.8f, 4.8f)),
                 5.8f,
+                "commercial",
                 DemoAmenity,
                 DemoOsmId
             );
             _demoChunk.RebuildMeshGreedy();
 
             DeltaSyncManager.RemoteDeltaReceived += OnRemoteDeltaReceived;
-            GD.Print($"[TERRE ZÉRO] zone prête h3={DemoH3Index} osm={DemoOsmId}");
+            GD.Print($"[TERRE ZÉRO] zone prête h3={DemoH3Index} osm={DemoOsmId} seed={generation.Seed} étages={generation.Floors} pièces={generation.Rooms}");
         }
 
         public override void _Process(double delta)
