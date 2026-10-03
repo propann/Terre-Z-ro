@@ -1,7 +1,7 @@
 using System;
 using Godot;
 
-namespace Chimeres.Voxel
+namespace TerreZero.World.Voxel
 {
     public partial class PlayerController : CharacterBody3D
     {
