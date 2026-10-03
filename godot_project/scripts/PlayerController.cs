@@ -1,5 +1,5 @@
-using System;
 using Godot;
+using TerreZero.Network;
 
 namespace TerreZero.World.Voxel
 {
@@ -9,19 +9,24 @@ namespace TerreZero.World.Voxel
         [Export] public float JumpVelocity = 4.5f;
         [Export] public float MouseSensitivity = 0.003f;
         [Export] public float MineReach = 5.0f;
+        [Export] public string PlayerId = "local-player";
+        [Export] public string ServerWebSocketUrl = "ws://127.0.0.1:8080/ws/spatial";
 
         private Camera3D _camera;
         private RayCast3D _rayCast;
         private MeshInstance3D _blockHighlight;
 
         public VoxelMaterial SelectedMaterial { get; set; } = VoxelMaterial.SteelBarricade;
-        public bool IsXrayActive { get; set; } = false;
+        public bool IsXrayActive { get; set; }
 
         public override void _Ready()
         {
             _camera = GetNode<Camera3D>("Camera3D");
             _rayCast = GetNode<RayCast3D>("Camera3D/RayCast3D");
-            _blockHighlight = GetNode<MeshInstance3D>("BlockHighlight");
+            _blockHighlight = GetNodeOrNull<MeshInstance3D>("BlockHighlight");
+            _rayCast.TargetPosition = new Vector3(0, 0, -MineReach);
+
+            DeltaSyncManager.Configure(ServerWebSocketUrl, PlayerId);
             Input.MouseMode = Input.MouseModeEnum.Captured;
         }
 
@@ -32,15 +37,15 @@ namespace TerreZero.World.Voxel
                 RotateY(-mouseMotion.Relative.X * MouseSensitivity);
                 _camera.RotateX(-mouseMotion.Relative.Y * MouseSensitivity);
 
-                Vector3 rot = _camera.Rotation;
-                rot.X = Mathf.Clamp(rot.X, -Mathf.Pi / 2.2f, Mathf.Pi / 2.2f);
-                _camera.Rotation = rot;
+                Vector3 rotation = _camera.Rotation;
+                rotation.X = Mathf.Clamp(rotation.X, -Mathf.Pi / 2.2f, Mathf.Pi / 2.2f);
+                _camera.Rotation = rotation;
             }
 
             if (Input.IsActionJustPressed("toggle_xray"))
             {
                 IsXrayActive = !IsXrayActive;
-                GD.Print($"[Voxel] Mode X-Ray Sonde : {(IsXrayActive ? "ACTIF" : "OFF")}");
+                GD.Print($"[TERRE ZÉRO] scanner X-Ray {(IsXrayActive ? "ACTIF" : "OFF")}");
             }
         }
 
@@ -49,14 +54,10 @@ namespace TerreZero.World.Voxel
             Vector3 velocity = Velocity;
 
             if (!IsOnFloor())
-            {
                 velocity += GetGravity() * (float)delta;
-            }
 
             if (Input.IsActionJustPressed("jump") && IsOnFloor())
-            {
                 velocity.Y = JumpVelocity;
-            }
 
             Vector2 inputDir = Input.GetVector("move_left", "move_right", "move_forward", "move_backward");
             Vector3 direction = (Transform.Basis * new Vector3(inputDir.X, 0, inputDir.Y)).Normalized();
@@ -74,39 +75,55 @@ namespace TerreZero.World.Voxel
 
             Velocity = velocity;
             MoveAndSlide();
-
             ProcessVoxelInteraction();
         }
 
         private void ProcessVoxelInteraction()
         {
-            if (_rayCast.IsColliding())
+            if (!_rayCast.IsColliding())
+                return;
+
+            var collider = _rayCast.GetCollider();
+            if (collider is not StaticBody3D staticBody || staticBody.GetParent() is not VoxelChunk chunk)
+                return;
+
+            Vector3 localHit = chunk.ToLocal(_rayCast.GetCollisionPoint());
+            Vector3 hitNormal = _rayCast.GetCollisionNormal();
+
+            if (Input.IsActionJustPressed("mine_voxel"))
             {
-                var collider = _rayCast.GetCollider();
-                Vector3 hitPos = _rayCast.GetCollisionPoint();
-                Vector3 hitNormal = _rayCast.GetCollisionNormal();
+                int destroyed = chunk.CarveSphere(localHit, 0.4f);
+                if (destroyed > 0)
+                    PublishPendingEdits(chunk);
+            }
+            else if (Input.IsActionJustPressed("place_voxel"))
+            {
+                Vector3 placePos = localHit + hitNormal * VoxelChunk.VoxelScale;
+                int vx = Mathf.RoundToInt(placePos.X / VoxelChunk.VoxelScale);
+                int vy = Mathf.RoundToInt(placePos.Y / VoxelChunk.VoxelScale);
+                int vz = Mathf.RoundToInt(placePos.Z / VoxelChunk.VoxelScale);
 
-                if (collider is StaticBody3D staticBody && staticBody.GetParent() is VoxelChunk chunk)
-                {
-                    Vector3 localHit = chunk.ToLocal(hitPos);
+                chunk.SetVoxel(vx, vy, vz, SelectedMaterial, trackEdit: true);
+                chunk.RebuildMeshGreedy();
+                PublishPendingEdits(chunk);
+            }
+        }
 
-                    // Minage / Destruction (Clic Gauche)
-                    if (Input.IsActionPressed("mine_voxel"))
-                    {
-                        chunk.CarveSphere(localHit, 0.4f); // 40cm drill sphere
-                    }
-                    // Pose de bloc (Clic Droit)
-                    else if (Input.IsActionJustPressed("place_voxel"))
-                    {
-                        Vector3 placePos = localHit + hitNormal * VoxelChunk.VoxelScale;
-                        int vx = Mathf.RoundToInt(placePos.X / VoxelChunk.VoxelScale);
-                        int vy = Mathf.RoundToInt(placePos.Y / VoxelChunk.VoxelScale);
-                        int vz = Mathf.RoundToInt(placePos.Z / VoxelChunk.VoxelScale);
+        private void PublishPendingEdits(VoxelChunk chunk)
+        {
+            foreach (var edit in chunk.DrainPendingEdits())
+            {
+                bool destroy = edit.NewMaterial == VoxelMaterial.Air;
+                byte materialId = destroy ? (byte)0 : (byte)edit.NewMaterial;
 
-                        chunk.SetVoxel(vx, vy, vz, SelectedMaterial);
-                        chunk.RebuildMeshGreedy();
-                    }
-                }
+                _ = DeltaSyncManager.RecordVoxelModificationAsync(
+                    chunk.H3Index,
+                    chunk.ChunkCoord,
+                    edit.Position,
+                    destroy,
+                    materialId,
+                    PlayerId
+                );
             }
         }
     }
