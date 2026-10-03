@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Godot;
 using TerreZero.World.Geo;
+using TerreZero.Network;
 
 namespace TerreZero.World.Generation
 {
@@ -102,6 +103,18 @@ namespace TerreZero.World.Generation
         }
     }
 
+    public sealed class CellDeltaPayload
+    {
+        [JsonPropertyName("h3_index")]
+        public string H3Index { get; set; } = string.Empty;
+
+        [JsonPropertyName("count")]
+        public int Count { get; set; }
+
+        [JsonPropertyName("deltas")]
+        public List<VoxelDeltaEvent> Deltas { get; set; } = new();
+    }
+
     public sealed class WorldDataClient : IDisposable
     {
         private readonly HttpClient _http;
@@ -132,6 +145,25 @@ namespace TerreZero.World.Generation
             );
 
             return payload ?? new WorldCellPayload { H3Index = h3Index };
+        }
+
+        public async Task<CellDeltaPayload> GetDeltasAsync(
+            string h3Index,
+            CancellationToken cancellationToken = default)
+        {
+            using var response = await _http.GetAsync(
+                $"api/v1/cells/{Uri.EscapeDataString(h3Index)}",
+                cancellationToken
+            );
+            response.EnsureSuccessStatusCode();
+
+            await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+            var payload = await JsonSerializer.DeserializeAsync<CellDeltaPayload>(
+                stream,
+                cancellationToken: cancellationToken
+            );
+
+            return payload ?? new CellDeltaPayload { H3Index = h3Index };
         }
 
         public void Dispose() => _http.Dispose();
