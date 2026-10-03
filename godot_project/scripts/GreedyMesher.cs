@@ -1,7 +1,7 @@
 using System;
 using Godot;
 
-namespace Chimeres.Voxel
+namespace TerreZero.World.Voxel
 {
     public static class GreedyMesher
     {
@@ -105,6 +105,7 @@ namespace Chimeres.Voxel
             if (chunk.MeshInstance == null)
             {
                 var mi = new MeshInstance3D();
+                chunk.MeshInstance = mi;
                 chunk.AddChild(mi);
             }
             chunk.MeshInstance.Mesh = arrayMesh;
