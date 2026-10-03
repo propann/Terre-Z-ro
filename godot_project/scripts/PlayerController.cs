@@ -87,7 +87,8 @@ namespace TerreZero.World.Voxel
             if (collider is not StaticBody3D staticBody || staticBody.GetParent() is not VoxelChunk chunk)
                 return;
 
-            Vector3 localHit = chunk.ToLocal(_rayCast.GetCollisionPoint());
+            Vector3 collisionPoint = _rayCast.GetCollisionPoint();
+            Vector3 localHit = chunk.ToLocal(collisionPoint);
             Vector3 hitNormal = _rayCast.GetCollisionNormal();
 
             if (Input.IsActionJustPressed("mine_voxel"))
@@ -98,6 +99,14 @@ namespace TerreZero.World.Voxel
             }
             else if (Input.IsActionJustPressed("place_voxel"))
             {
+                if (chunk.WorldGrid != null)
+                {
+                    Vector3 worldPlace = collisionPoint + hitNormal * (VoxelChunk.VoxelScale * 0.55f);
+                    chunk.WorldGrid.PlaceVoxelAtWorldPosition(worldPlace, SelectedMaterial, trackEdit: true);
+                    PublishPendingEdits(chunk);
+                    return;
+                }
+
                 Vector3 placePos = localHit + hitNormal * VoxelChunk.VoxelScale;
                 int vx = Mathf.RoundToInt(placePos.X / VoxelChunk.VoxelScale);
                 int vy = Mathf.RoundToInt(placePos.Y / VoxelChunk.VoxelScale);
@@ -111,20 +120,30 @@ namespace TerreZero.World.Voxel
 
         private void PublishPendingEdits(VoxelChunk chunk)
         {
-            foreach (var edit in chunk.DrainPendingEdits())
+            if (chunk.WorldGrid != null)
             {
-                bool destroy = edit.NewMaterial == VoxelMaterial.Air;
-                byte materialId = destroy ? (byte)0 : (byte)edit.NewMaterial;
-
-                _ = DeltaSyncManager.RecordVoxelModificationAsync(
-                    chunk.H3Index,
-                    chunk.ChunkCoord,
-                    edit.Position,
-                    destroy,
-                    materialId,
-                    PlayerId
-                );
+                foreach (var worldEdit in chunk.WorldGrid.DrainPendingEdits())
+                    PublishEdit(chunk.H3Index, worldEdit.ChunkCoord, worldEdit.Edit);
+                return;
             }
+
+            foreach (var edit in chunk.DrainPendingEdits())
+                PublishEdit(chunk.H3Index, chunk.ChunkCoord, edit);
+        }
+
+        private void PublishEdit(string h3Index, Vector3I chunkCoord, VoxelEdit edit)
+        {
+            bool destroy = edit.NewMaterial == VoxelMaterial.Air;
+            byte materialId = destroy ? (byte)0 : (byte)edit.NewMaterial;
+
+            _ = DeltaSyncManager.RecordVoxelModificationAsync(
+                h3Index,
+                chunkCoord,
+                edit.Position,
+                destroy,
+                materialId,
+                PlayerId
+            );
         }
     }
 }
