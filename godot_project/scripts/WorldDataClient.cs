@@ -1,0 +1,139 @@
+using System;
+using System.Collections.Generic;
+using System.Net.Http;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Threading;
+using System.Threading.Tasks;
+using Godot;
+using TerreZero.World.Geo;
+
+namespace TerreZero.World.Generation
+{
+    public sealed class WorldCellPayload
+    {
+        [JsonPropertyName("h3_index")]
+        public string H3Index { get; set; } = string.Empty;
+
+        [JsonPropertyName("buildings")]
+        public List<WorldBuildingPayload> Buildings { get; set; } = new();
+
+        [JsonPropertyName("roads")]
+        public List<WorldRoadPayload> Roads { get; set; } = new();
+    }
+
+    public sealed class WorldBuildingPayload
+    {
+        [JsonPropertyName("osm_id")]
+        public long OSMID { get; set; }
+
+        [JsonPropertyName("name")]
+        public string Name { get; set; } = string.Empty;
+
+        [JsonPropertyName("building_type")]
+        public string BuildingType { get; set; } = "yes";
+
+        [JsonPropertyName("amenity")]
+        public string Amenity { get; set; } = string.Empty;
+
+        [JsonPropertyName("levels")]
+        public int Levels { get; set; } = 2;
+
+        [JsonPropertyName("height_meters")]
+        public float HeightMeters { get; set; } = 6f;
+
+        [JsonPropertyName("geometry")]
+        public GeoJsonGeometry Geometry { get; set; }
+    }
+
+    public sealed class WorldRoadPayload
+    {
+        [JsonPropertyName("osm_id")]
+        public long OSMID { get; set; }
+
+        [JsonPropertyName("highway_type")]
+        public string HighwayType { get; set; } = string.Empty;
+
+        [JsonPropertyName("surface")]
+        public string Surface { get; set; } = "asphalt";
+
+        [JsonPropertyName("lanes")]
+        public int Lanes { get; set; } = 2;
+
+        [JsonPropertyName("geometry")]
+        public GeoJsonGeometry Geometry { get; set; }
+    }
+
+    public sealed class GeoJsonGeometry
+    {
+        [JsonPropertyName("type")]
+        public string Type { get; set; } = string.Empty;
+
+        [JsonPropertyName("coordinates")]
+        public JsonElement Coordinates { get; set; }
+
+        public Vector2[] ProjectOuterRing(GeoAnchor anchor)
+        {
+            if (!string.Equals(Type, "Polygon", StringComparison.OrdinalIgnoreCase))
+                return Array.Empty<Vector2>();
+
+            if (Coordinates.ValueKind != JsonValueKind.Array || Coordinates.GetArrayLength() == 0)
+                return Array.Empty<Vector2>();
+
+            var outerRing = Coordinates[0];
+            if (outerRing.ValueKind != JsonValueKind.Array)
+                return Array.Empty<Vector2>();
+
+            var points = new List<Vector2>(outerRing.GetArrayLength());
+            foreach (var coordinate in outerRing.EnumerateArray())
+            {
+                if (coordinate.ValueKind != JsonValueKind.Array || coordinate.GetArrayLength() < 2)
+                    continue;
+
+                double longitude = coordinate[0].GetDouble();
+                double latitude = coordinate[1].GetDouble();
+                points.Add(anchor.ToLocalMeters(latitude, longitude));
+            }
+
+            if (points.Count > 1 && points[0].IsEqualApprox(points[^1]))
+                points.RemoveAt(points.Count - 1);
+
+            return points.ToArray();
+        }
+    }
+
+    public sealed class WorldDataClient : IDisposable
+    {
+        private readonly HttpClient _http;
+
+        public WorldDataClient(string baseUrl)
+        {
+            _http = new HttpClient
+            {
+                BaseAddress = new Uri(baseUrl.TrimEnd('/') + "/"),
+                Timeout = TimeSpan.FromSeconds(10)
+            };
+        }
+
+        public async Task<WorldCellPayload> GetCellAsync(
+            string h3Index,
+            CancellationToken cancellationToken = default)
+        {
+            using var response = await _http.GetAsync(
+                $"api/v1/world/cells/{Uri.EscapeDataString(h3Index)}",
+                cancellationToken
+            );
+            response.EnsureSuccessStatusCode();
+
+            await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+            var payload = await JsonSerializer.DeserializeAsync<WorldCellPayload>(
+                stream,
+                cancellationToken: cancellationToken
+            );
+
+            return payload ?? new WorldCellPayload { H3Index = h3Index };
+        }
+
+        public void Dispose() => _http.Dispose();
+    }
+}
