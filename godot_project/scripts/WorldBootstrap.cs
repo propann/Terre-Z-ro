@@ -12,17 +12,19 @@ namespace TerreZero.World
         [Export] public long DemoOsmId { get; set; } = 100001;
         [Export] public string DemoBuildingType { get; set; } = "commercial";
         [Export] public string DemoAmenity { get; set; } = "pharmacy";
+        [Export] public int StreamRadiusChunks { get; set; } = 3;
 
         private readonly ConcurrentQueue<VoxelDeltaEvent> _remoteDeltas = new();
         private VoxelWorldGrid _world;
+        private Node3D _player;
+        private double _streamTimer;
 
         public override void _Ready()
         {
             var container = GetNode<Node3D>("VoxelWorldContainer");
+            _player = GetNode<Node3D>("Player");
             _world = new VoxelWorldGrid(container, DemoH3Index);
 
-            // Empreinte volontairement supérieure à un chunk de 6,4 m :
-            // 20 x 30 m, 18 m de haut. Cela valide le découpage X/Y/Z.
             var generation = OSMVoxelizer.VoxelizeBuilding(
                 _world,
                 new Rect2(new Vector2(0.0f, 0.0f), new Vector2(20.0f, 30.0f)),
@@ -32,6 +34,7 @@ namespace TerreZero.World
                 DemoOsmId
             );
 
+            _world.UpdateVisibility(_player.GlobalPosition, StreamRadiusChunks);
             DeltaSyncManager.RemoteDeltaReceived += OnRemoteDeltaReceived;
 
             GD.Print(
@@ -46,6 +49,13 @@ namespace TerreZero.World
         {
             while (_remoteDeltas.TryDequeue(out var remote))
                 ApplyRemoteDelta(remote);
+
+            _streamTimer += delta;
+            if (_streamTimer >= 0.25 && _world != null && _player != null)
+            {
+                _streamTimer = 0;
+                _world.UpdateVisibility(_player.GlobalPosition, StreamRadiusChunks);
+            }
         }
 
         public override void _ExitTree()
