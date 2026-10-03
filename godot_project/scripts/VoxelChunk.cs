@@ -61,6 +61,7 @@ namespace TerreZero.World.Voxel
         [Export] public string H3Index { get; set; } = "891fb466257ffff";
         [Export] public Vector3I ChunkCoord { get; set; } = Vector3I.Zero;
         public bool IsDirty { get; private set; } = true;
+        public VoxelWorldGrid WorldGrid { get; set; }
 
         [Export] public MeshInstance3D MeshInstance { get; set; }
         [Export] public StaticBody3D CollisionBody { get; set; }
@@ -127,6 +128,9 @@ namespace TerreZero.World.Voxel
 
         public int CarveSphere(Vector3 localPos, float radiusMeters)
         {
+            if (WorldGrid != null)
+                return WorldGrid.CarveSphere(this, localPos, radiusMeters);
+
             int cx = Mathf.RoundToInt(localPos.X / VoxelScale);
             int cy = Mathf.RoundToInt(localPos.Y / VoxelScale);
             int cz = Mathf.RoundToInt(localPos.Z / VoxelScale);
@@ -141,6 +145,7 @@ namespace TerreZero.World.Voxel
                 int dx = x - cx;
                 int dy = y - cy;
                 int dz = z - cz;
+
                 if ((dx * dx) + (dy * dy) + (dz * dz) > radiusSq)
                     continue;
 
@@ -171,6 +176,14 @@ namespace TerreZero.World.Voxel
         {
             GreedyMesher.GenerateMesh(this);
             IsDirty = false;
+        }
+
+        public void SetStreamingActive(bool active)
+        {
+            Visible = active;
+
+            if (CollisionShape != null)
+                CollisionShape.SetDeferred("disabled", !active);
         }
 
         private static bool IsInside(int x, int y, int z) =>
