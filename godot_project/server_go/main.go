@@ -9,12 +9,14 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	h3 "github.com/uber/h3-go/v4"
 )
 
 const (
@@ -355,6 +357,7 @@ func main() {
 	mux.HandleFunc("/api/v1/health", handleHealth)
 	mux.HandleFunc("/api/v1/cells/", handleGetCellDeltas)
 	mux.HandleFunc("/api/v1/world/cells/", handleGetWorldCell)
+	mux.HandleFunc("/api/v1/spatial/cell", handleResolveSpatialCell)
 	mux.HandleFunc("/ws/spatial", handleSpatialWebSocket)
 
 	server := &http.Server{
@@ -407,6 +410,33 @@ func handleGetCellDeltas(w http.ResponseWriter, r *http.Request) {
 		"h3_index": h3,
 		"count":    len(deltas),
 		"deltas":   deltas,
+	})
+}
+
+func handleResolveSpatialCell(w http.ResponseWriter, r *http.Request) {
+	lat, err := strconv.ParseFloat(r.URL.Query().Get("lat"), 64)
+	if err != nil || lat < -90 || lat > 90 {
+		http.Error(w, "latitude invalide", http.StatusBadRequest)
+		return
+	}
+
+	lon, err := strconv.ParseFloat(r.URL.Query().Get("lon"), 64)
+	if err != nil || lon < -180 || lon > 180 {
+		http.Error(w, "longitude invalide", http.StatusBadRequest)
+		return
+	}
+
+	cell, err := h3.LatLngToCell(h3.NewLatLng(lat, lon), 9)
+	if err != nil {
+		http.Error(w, "conversion H3 impossible", http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"h3_index":   cell.String(),
+		"resolution": 9,
+		"latitude":   lat,
+		"longitude":  lon,
 	})
 }
 
