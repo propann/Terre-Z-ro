@@ -97,6 +97,27 @@ namespace TerreZero.World
             var anchor = new GeoAnchor(AnchorLatitude, AnchorLongitude);
             int generated = 0;
 
+            if (cell.Roads != null)
+            {
+                foreach (var road in cell.Roads)
+                {
+                    if (road.Geometry == null)
+                        continue;
+
+                    Vector2[] line = road.Geometry.ProjectLineString(anchor);
+                    if (line.Length < 2)
+                        continue;
+
+                    OSMRoadVoxelizer.VoxelizeRoad(
+                        _world,
+                        line,
+                        road.HighwayType,
+                        road.Surface,
+                        road.Lanes
+                    );
+                }
+            }
+
             foreach (var building in cell.Buildings)
             {
                 if (building.Geometry == null)
@@ -131,9 +152,12 @@ namespace TerreZero.World
             if (generated == 0)
                 return false;
 
+            _world.RebuildDirtyChunks();
+
             GD.Print(
                 $"[TERRE ZÉRO] cellule réelle {DemoH3Index} : " +
-                $"{generated} bâtiments, {_world.LoadedChunkCount} chunks"
+                $"{generated} bâtiments, {cell.Roads?.Count ?? 0} routes, " +
+                $"{_world.LoadedChunkCount} chunks"
             );
 
             return true;
