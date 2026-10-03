@@ -2,7 +2,7 @@ using System;
 using System.Runtime.CompilerServices;
 using Godot;
 
-namespace Chimeres.Voxel
+namespace TerreZero.World.Voxel
 {
     public enum VoxelMaterial : byte
     {
