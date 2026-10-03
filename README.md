@@ -1,109 +1,47 @@
-# pimage
+# Chimères : Prototype AR & Moteur Géospatial Post-Apocalyptique (OSM + H3 + 3D Voxel)
 
-Application photo Python pensée pour Raspberry Pi (Picamera2 + Pygame), avec interface tactile et petit module CLI.
+Jeu mobile et web de survie géolocalisé post-apocalyptique dans le monde réel, alimenté par les données **OpenStreetMap (Overpass API)**, le découpage spatial **Uber H3** et un moteur d'extrusion 3D procédural (Godot 4 / Unity / Three.js).
 
-## Objectif du dépôt
+---
 
-Le projet fournit deux choses complémentaires :
+## 🎯 Architecture & Concepts Clés
 
-- une application caméra interactive (`app_photo.py`) pour capturer et retoucher rapidement des images ;
-- un package Python (`pimage/`) pour la configuration, le logging, le stockage et quelques effets.
+1. **Extraction de Terrain & Polygones Réels :**
+   - Requête Overpass API sur un rayon de 200m à 1000m autour des coordonnées GPS du joueur.
+   - Extrusion 3D automatique des bâtiments selon les tags `building:levels` et `height`.
+   - Réseau routier brut, zones crevassées et parcs bio-mutés.
 
-## État actuel (aligné sur le code)
+2. **Système Spatial Hexagonal Uber H3 :**
+   - Découpage du monde en cellules hexagonales hiérarchisées (Résolution 9 ~100m).
+   - Gestion du brouillard de guerre, des radiations Geiger et de la densité de mutants.
 
-### 1) Lancement
+3. **Boucle de Gameplay (Core Loop) :**
+   - **Phase Nomade (Dehors) :** Déplacement GPS réel ou simulateur, radar de proximité 50m, notifications haptiques, extraction de ressources en 1-tap à moins de 20m, inventaire limité en poids.
+   - **Phase Sédentaire (Bunker à la maison) :** Déchargement dans les coffres, craft à l'établi, gestion de l'énergie, amélioration des défenses et entraînement des Chimères capturées.
 
-- Entrypoint package : `python3 -m pimage` (redirige vers `pimage.cli:main`).
-- Le CLI initialise les logs, charge/valide la configuration, puis lance l'UI caméra.
-- Option utile : `--check-config` valide la configuration et quitte sans lancer l'interface.
+4. **Système de Chimères & Biomes :**
+   - **Chimères Mécaniques :** Drones industriels réactivés sauvagement (zones commerciales, usines, voies ferrées).
+   - **Chimères Bio-mutées :** Faune altérée par les radiations (parcs, forêts, plans d'eau).
+   - Combat au tour par tour, pièges à impulsion IEM et affectation des rôles au bunker (Défense, Énergie +15kW, Pistage +25m, Mule cargo +10kg).
 
-### 2) Configuration
+---
 
-La config est gérée par `pimage/config.py` :
+## 🛠️ Feuille de Route du Projet (Phases 1 à 6)
 
-- fichier principal : `config.yaml` ;
-- migration legacy : lit `config.json` si `config.yaml` n'existe pas ;
-- validation des bornes (résolution, largeur de panneau, index caméra, PWM ventilateur, etc.) ;
-- réécriture automatique du fichier avec une structure normalisée.
+- **Phase 1 (Semaines 1-3) :** Socle géospatial, PostGIS 16, Uber H3, API `GET /api/v1/cells/{h3_index}`, Extrusion 3D.
+- **Phase 2 (Semaines 4-6) :** Pont GPS natif avec filtre de Kalman, streaming de chunks H3 à 60 FPS, shaders post-apo, HUD nomade.
+- **Phase 3 (Semaines 7-9) :** Mapping des tags OSM vers tables de loot, rayon de fouille 20-30m, combat et capture de Chimères.
+- **Phase 4 (Semaines 10-12) :** Bunker sécurisé, moteur de construction voxel, arbre de craft et économie fermée.
+- **Phase 5 (Semaines 13-16) :** Multijoueur Nakama/WebSocket, synchronisation des deltas de monde, troc P2P, guerres de territoire.
+- **Phase 6 (Semaines 17-20) :** Véhicules assemblés (buggy/vélo), anti-spoofing GPS et bêta fermée.
 
-Champs principaux écrits dans la config :
+---
 
-- `paths.photos`
-- `screen.width`, `screen.height`, `screen.panel_width`
-- `camera.index`, `camera.sensor2_enabled`
-- `overlay.default_grid`, `overlay.histogram_interval_ms`
-- `cooling.fan_pwm`, `cooling.curve`
-
-### 3) Interface caméra (`app_photo.py`)
-
-Fonctionnalités implémentées :
-
-- preview live via Picamera2 dans la zone image ;
-- menus/couches UI (capture, réglages, couleur, système) ;
-- capture JPEG dans `paths.photos` avec nom horodaté (`img_YYYYMMDD_HHMMSS_<profil>.jpg`) ;
-- vérification stockage avant capture (lecture seule + espace disque minimum) ;
-- effets preview : `none`, `noir`, `vintage` ;
-- grilles de cadrage via `overlays.py` ;
-- histogramme RGB overlay ;
-- popup de renommage post-capture (clavier tactile si `pygame-vkeyboard` est installé) ;
-- vue d'édition basique : crop, rotation, flip, undo, sliders luminosité/contraste/saturation/teinte, export JPEG.
-
-### 4) Module stockage (`pimage/storage.py`)
-
-Le module fournit :
-
-- état stockage (`free_bytes`, `total_bytes`, `read_only`) ;
-- génération de noms de captures ;
-- écriture atomique binaire (`*.tmp` puis replace) ;
-- nettoyage quota sur les JPG les plus anciens.
-
-### 5) Effets (`pimage/effects.py`)
-
-Effets NumPy disponibles :
-
-- `noir` (conversion niveaux de gris) ;
-- `vintage` (canaux colorimétriques modifiés) ;
-- effet inconnu : image conservée (hors clipping/type).
-
-## Installation (Raspberry Pi OS)
-
-Exemple minimal :
+## 🚀 Démarrage Rapide
 
 ```bash
-sudo apt update
-sudo apt install -y python3-picamera2 python3-pygame python3-numpy
-pip install pygame-vkeyboard pyyaml
+npm install
+npm run dev
 ```
 
-## Utilisation
-
-```bash
-python3 -m pimage
-```
-
-Validation config seule :
-
-```bash
-python3 -m pimage --check-config
-```
-
-## Tests disponibles
-
-Le dépôt contient des tests unitaires/smoke sur :
-
-- la configuration,
-- le stockage,
-- les effets,
-- le mode `--check-config`.
-
-Lancement :
-
-```bash
-pytest
-```
-
-## Limites connues
-
-- L'application UI dépend fortement du matériel Raspberry Pi (Picamera2 requis).
-- Les réglages HUD (ouverture, vitesse, ISO, Kelvin) servent actuellement surtout d'interface et ne représentent pas tous des contrôles matériels directs appliqués au capteur.
-- Les effets sont appliqués côté preview/traitement logiciel, pas via un pipeline ISP avancé.
+L'application démarre sur `http://localhost:3000`.

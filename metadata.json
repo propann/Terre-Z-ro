@@ -1,0 +1,8 @@
+{
+  "name": "Chimères : Moteur GPS & Parseur OSM Post-Apo",
+  "description": "Prototype jouable et parseur OpenStreetMap (OSM) pour jeu GPS post-apocalyptique avec extraction Overpass, rendu voxel 3D, système H3, boucle Nomade/Sédentaire et capture de Chimères.",
+  "permissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
