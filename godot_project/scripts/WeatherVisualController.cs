@@ -68,7 +68,7 @@ namespace TerreZero.World.Weather
             bool isDay,
             int weatherCode)
         {
-            Environment env = _worldEnvironment?.Environment;
+            Godot.Environment env = _worldEnvironment?.Environment;
             if (env == null)
                 return;
 
