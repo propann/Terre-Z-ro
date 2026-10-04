@@ -71,6 +71,7 @@ namespace TerreZero.World
 
             GlobalSaveStore.LoadAll();
             BunkerSaveStore.Load();
+            ExplorationState.Load();
 
             if (_battleUI != null)
             {
@@ -207,6 +208,7 @@ namespace TerreZero.World
 
             GlobalSaveStore.SaveAll();
             BunkerSaveStore.Save();
+            ExplorationState.Save();
         }
 
         private async void OnStartConfirmed(double latitude, double longitude, int radiusKm)
@@ -380,6 +382,7 @@ namespace TerreZero.World
 
         private async Task LoadActiveCellAsync(bool allowDemoFallback)
         {
+            ExplorationState.DiscoverCell(_activeH3);
             _world = new VoxelWorldGrid(_container, _activeH3);
 
             bool generatedRemoteWorld = false;
