@@ -743,6 +743,9 @@ namespace TerreZero.World
                 _world?.SetSurfaceWetness(
                     _weatherVisuals.CurrentSurfaceWetness
                 );
+                _world?.SetSnowCover(
+                    _weatherVisuals.CurrentSnowCover
+                );
 
                 UrbanDecorDirector.SetStreetLights(
                     _urbanDecorContainer,
