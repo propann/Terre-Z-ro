@@ -122,6 +122,120 @@ namespace TerreZero.World.Generation
                     plants++;
                 }
             }
+
+            PopulatePuddles(
+                parent,
+                world,
+                origin,
+                ref rng
+            );
+        }
+
+        private static void PopulatePuddles(
+            Node3D parent,
+            VoxelWorldGrid world,
+            Vector3 origin,
+            ref DeterministicRng rng)
+        {
+            int created = 0;
+
+            for (int attempt = 0; attempt < 28 && created < 10; attempt++)
+            {
+                float angle = rng.NextFloat() * Mathf.Tau;
+                float radius = 4f + rng.NextFloat() * 22f;
+
+                Vector3 position = origin + new Vector3(
+                    Mathf.Cos(angle) * radius,
+                    VoxelChunk.VoxelScale + 0.012f,
+                    Mathf.Sin(angle) * radius
+                );
+
+                int gx = Mathf.FloorToInt(
+                    position.X / VoxelChunk.VoxelScale
+                );
+                int gz = Mathf.FloorToInt(
+                    position.Z / VoxelChunk.VoxelScale
+                );
+
+                VoxelMaterial ground =
+                    world.GetVoxelGlobal(gx, 0, gz);
+
+                if (ground is not
+                    (VoxelMaterial.Asphalt or VoxelMaterial.Sidewalk))
+                {
+                    continue;
+                }
+
+                var material = new StandardMaterial3D
+                {
+                    Transparency =
+                        BaseMaterial3D.TransparencyEnum.Alpha,
+                    AlbedoColor =
+                        new Color(0.06f, 0.11f, 0.14f, 0f),
+                    Roughness = 0.08f,
+                    Metallic = 0.05f
+                };
+
+                var puddle = new MeshInstance3D
+                {
+                    Name = "WeatherPuddle",
+                    Position = position,
+                    RotationDegrees = new Vector3(
+                        0f,
+                        rng.NextFloat() * 360f,
+                        0f
+                    ),
+                    Mesh = new PlaneMesh
+                    {
+                        Size = new Vector2(
+                            rng.NextRange(0.55f, 1.45f),
+                            rng.NextRange(0.28f, 0.82f)
+                        )
+                    },
+                    MaterialOverride = material,
+                    Visible = false
+                };
+
+                parent.AddChild(puddle);
+                created++;
+            }
+        }
+
+        public static void SetWetness(
+            Node3D parent,
+            float wetness)
+        {
+            if (parent == null)
+                return;
+
+            float value = Mathf.Clamp(wetness, 0f, 1f);
+
+            foreach (Node child in parent.GetChildren())
+                ApplyWetnessRecursive(child, value);
+        }
+
+        private static void ApplyWetnessRecursive(
+            Node node,
+            float wetness)
+        {
+            if (node is MeshInstance3D mesh &&
+                node.Name == "WeatherPuddle" &&
+                mesh.MaterialOverride is StandardMaterial3D material)
+            {
+                mesh.Visible = wetness > 0.12f;
+
+                Color color = material.AlbedoColor;
+                color.A = Mathf.Lerp(0f, 0.52f, wetness);
+                material.AlbedoColor = color;
+                material.Roughness = Mathf.Lerp(
+                    0.20f,
+                    0.035f,
+                    wetness
+                );
+            }
+
+            foreach (Node child in node.GetChildren())
+                ApplyWetnessRecursive(child, wetness);
         }
 
         public static void SetWind(
