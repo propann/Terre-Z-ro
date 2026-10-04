@@ -127,3 +127,15 @@ layout_mode = 2
 theme_override_colors/font_color = Color(0.62, 0.69, 0.69, 0.8)
 theme_override_font_sizes/font_size = 12
 text = "CLIC G : EXTRAIRE   •   CLIC D : CONSTRUIRE   •   F : X-RAY"
+
+
+[node name="OSMAttribution" type="Label" parent="Root"]
+layout_mode = 0
+offset_left = 900.0
+offset_top = 694.0
+offset_right = 1260.0
+offset_bottom = 716.0
+theme_override_colors/font_color = Color(0.56, 0.62, 0.64, 0.72)
+theme_override_font_sizes/font_size = 10
+text = "DONNÉES CARTO © OPENSTREETMAP CONTRIBUTORS"
+horizontal_alignment = 2
