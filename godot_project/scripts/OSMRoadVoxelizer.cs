@@ -28,6 +28,11 @@ namespace TerreZero.World.Generation
             );
 
             bool vehicleRoad = IsVehicleRoad(highwayType);
+            VoxelMaterial shoulderMaterial =
+                highwayType is "motorway" or "trunk"
+                    ? VoxelMaterial.Concrete
+                    : VoxelMaterial.Sidewalk;
+
             float shoulderRadiusVoxels = vehicleRoad
                 ? Math.Max(
                     radiusVoxels,
@@ -44,7 +49,7 @@ namespace TerreZero.World.Generation
                         polylineMeters[i],
                         polylineMeters[i + 1],
                         shoulderRadiusVoxels,
-                        VoxelMaterial.Sidewalk
+                        shoulderMaterial
                     );
                 }
 
@@ -56,6 +61,9 @@ namespace TerreZero.World.Generation
                     material
                 );
             }
+
+            if (ShouldDrawCenterMarkings(highwayType))
+                DrawCenterMarkings(world, polylineMeters);
         }
 
         private static void RasterizeSegment(
@@ -116,6 +124,62 @@ namespace TerreZero.World.Generation
                 "pedestrian" => 3.0f,
                 _ => Math.Max(4.0f, safeLanes * 2.5f)
             };
+        }
+
+        private static void DrawCenterMarkings(
+            VoxelWorldGrid world,
+            Vector2[] polylineMeters)
+        {
+            const float dashMeters = 3.0f;
+            const float gapMeters = 3.0f;
+            float cycleMeters = dashMeters + gapMeters;
+            float travelledMeters = 0f;
+
+            for (int segment = 0; segment < polylineMeters.Length - 1; segment++)
+            {
+                Vector2 start = polylineMeters[segment];
+                Vector2 end = polylineMeters[segment + 1];
+                float length = start.DistanceTo(end);
+                int steps = Math.Max(
+                    1,
+                    Mathf.CeilToInt(length / VoxelChunk.VoxelScale)
+                );
+
+                for (int i = 0; i <= steps; i++)
+                {
+                    float t = i / (float)steps;
+                    float along = travelledMeters + length * t;
+                    if (Mathf.PosMod(along, cycleMeters) >= dashMeters)
+                        continue;
+
+                    Vector2 point = start.Lerp(end, t);
+                    int x = Mathf.RoundToInt(
+                        point.X / VoxelChunk.VoxelScale
+                    );
+                    int z = Mathf.RoundToInt(
+                        point.Y / VoxelChunk.VoxelScale
+                    );
+
+                    world.SetVoxelGlobal(
+                        x,
+                        0,
+                        z,
+                        VoxelMaterial.RoadMarking
+                    );
+                }
+
+                travelledMeters += length;
+            }
+        }
+
+        private static bool ShouldDrawCenterMarkings(string highwayType)
+        {
+            return highwayType is
+                "motorway" or
+                "trunk" or
+                "primary" or
+                "secondary" or
+                "tertiary";
         }
 
         private static bool IsVehicleRoad(string highwayType)
