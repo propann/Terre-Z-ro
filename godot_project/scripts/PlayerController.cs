@@ -1,3 +1,4 @@
+using System;
 using Godot;
 using TerreZero.Network;
 
@@ -18,6 +19,7 @@ namespace TerreZero.World.Voxel
 
         public VoxelMaterial SelectedMaterial { get; set; } = VoxelMaterial.SteelBarricade;
         public bool IsXrayActive { get; set; }
+        public event Action<bool> ScannerChanged;
         public bool GameplayEnabled { get; private set; } = true;
 
         public void SetGameplayEnabled(bool enabled)
@@ -48,6 +50,24 @@ namespace TerreZero.World.Voxel
 
         public override void _UnhandledInput(InputEvent @event)
         {
+            if (@event is InputEventKey key &&
+                key.Pressed &&
+                !key.Echo &&
+                key.Keycode == Key.Escape)
+            {
+                Input.MouseMode = Input.MouseModeEnum.Visible;
+                return;
+            }
+
+            if (@event is InputEventMouseButton mouseButton &&
+                mouseButton.Pressed &&
+                mouseButton.ButtonIndex == MouseButton.Left &&
+                Input.MouseMode == Input.MouseModeEnum.Visible)
+            {
+                Input.MouseMode = Input.MouseModeEnum.Captured;
+                return;
+            }
+
             if (@event is InputEventMouseMotion mouseMotion && Input.MouseMode == Input.MouseModeEnum.Captured)
             {
                 RotateY(-mouseMotion.Relative.X * MouseSensitivity);
@@ -61,6 +81,7 @@ namespace TerreZero.World.Voxel
             if (Input.IsActionJustPressed("toggle_xray"))
             {
                 IsXrayActive = !IsXrayActive;
+                ScannerChanged?.Invoke(IsXrayActive);
                 GD.Print($"[TERRE ZÉRO] scanner X-Ray {(IsXrayActive ? "ACTIF" : "OFF")}");
             }
         }
