@@ -42,7 +42,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.24'
-          cache-dependency-path: godot_project/server_go/go.sum
+          cache-dependency-path: godot_project/server_go/go.mod
       - name: Resolve dependencies
         run: go mod tidy
       - name: Vet
