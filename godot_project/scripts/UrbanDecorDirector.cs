@@ -107,6 +107,36 @@ namespace TerreZero.World.Generation
             }
         }
 
+        public static void SetStreetLights(
+            Node3D parent,
+            bool enabled,
+            float stormIntensity = 0f)
+        {
+            if (parent == null)
+                return;
+
+            float energy = enabled
+                ? Mathf.Lerp(0.85f, 1.45f, Mathf.Clamp(stormIntensity, 0f, 1f))
+                : 0f;
+
+            foreach (Node child in parent.GetChildren())
+                ApplyStreetLightRecursive(child, energy);
+        }
+
+        private static void ApplyStreetLightRecursive(
+            Node node,
+            float energy)
+        {
+            if (node is OmniLight3D light &&
+                node.Name == "StreetLight")
+            {
+                light.LightEnergy = energy;
+            }
+
+            foreach (Node child in node.GetChildren())
+                ApplyStreetLightRecursive(child, energy);
+        }
+
         private static void AddLampPost(
             Node3D parent,
             Vector3 position,
@@ -163,6 +193,16 @@ namespace TerreZero.World.Generation
                 },
                 Position = new Vector3(0.42f, 2.66f, 0f),
                 MaterialOverride = glow
+            });
+
+            root.AddChild(new OmniLight3D
+            {
+                Name = "StreetLight",
+                Position = new Vector3(0.42f, 2.55f, 0f),
+                LightColor = new Color(1.0f, 0.67f, 0.28f),
+                LightEnergy = 0f,
+                OmniRange = 5.2f,
+                ShadowEnabled = false
             });
         }
 
