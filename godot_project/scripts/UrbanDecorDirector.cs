@@ -431,6 +431,8 @@ namespace TerreZero.World.Generation
                 OmniRange = 5.2f,
                 ShadowEnabled = false
             });
+
+            ApplyVisibilityRange(root, 58f);
         }
 
         private static void AddBarrier(
@@ -480,6 +482,8 @@ namespace TerreZero.World.Generation
                 Position = new Vector3(0f, 0.48f, 0f),
                 MaterialOverride = warning
             });
+
+            ApplyVisibilityRange(root, 48f);
         }
 
         private static void AddVehicleWreck(
@@ -581,6 +585,8 @@ namespace TerreZero.World.Generation
                     MaterialOverride = body
                 });
             }
+
+            ApplyVisibilityRange(root, 72f);
         }
 
         private static void AddStreetFurniture(
@@ -681,6 +687,8 @@ namespace TerreZero.World.Generation
                     MaterialOverride = metal
                 });
             }
+
+            ApplyVisibilityRange(root, 42f);
         }
 
         private static void AddBrokenSign(
@@ -738,6 +746,8 @@ namespace TerreZero.World.Generation
                 ),
                 MaterialOverride = sign
             });
+
+            ApplyVisibilityRange(root, 54f);
         }
 
         private static void AddDebris(
@@ -864,6 +874,8 @@ namespace TerreZero.World.Generation
                     MaterialOverride = moss
                 });
             }
+
+            ApplyVisibilityRange(root, 34f);
         }
 
         private static void AddPlant(
@@ -919,6 +931,21 @@ namespace TerreZero.World.Generation
                     MaterialOverride = green
                 });
             }
+        }
+
+        private static void ApplyVisibilityRange(
+            Node node,
+            float endMeters)
+        {
+            if (node is GeometryInstance3D geometry)
+            {
+                geometry.VisibilityRangeEnd = endMeters;
+                geometry.VisibilityRangeFadeMode =
+                    GeometryInstance3D.VisibilityRangeFadeModeEnum.Self;
+            }
+
+            foreach (Node child in node.GetChildren())
+                ApplyVisibilityRange(child, endMeters);
         }
 
         private static StandardMaterial3D MakeMaterial(
