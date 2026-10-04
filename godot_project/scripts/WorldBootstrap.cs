@@ -38,6 +38,7 @@ namespace TerreZero.World
         private Node3D _container;
         private Node3D _chimereContainer;
         private Node3D _lootContainer;
+        private Node3D _hazardContainer;
         private Node3D _player;
         private PlayerController _playerController;
         private StartLocationUI _startUI;
@@ -60,6 +61,8 @@ namespace TerreZero.World
             _chimereContainer = GetNode<Node3D>("ChimereWorldContainer");
             _lootContainer = new Node3D { Name = "LootWorldContainer" };
             AddChild(_lootContainer);
+            _hazardContainer = new Node3D { Name = "HazardWorldContainer" };
+            AddChild(_hazardContainer);
             _chimereActorScene = GD.Load<PackedScene>("res://scenes/ChimereWorldActor.tscn");
             _player = GetNode<Node3D>("Player");
             _playerController = _player as PlayerController;
@@ -424,6 +427,7 @@ namespace TerreZero.World
             _world.UpdateVisibility(_player.GlobalPosition, StreamRadiusChunks);
             SpawnWorldChimeres();
             SpawnLootCaches();
+            SpawnRadiationHazards();
         }
 
         private void SpawnWorldChimeres()
@@ -509,6 +513,29 @@ namespace TerreZero.World
                 );
 
             _hud?.SetHint($"LOOT : {summary}");
+        }
+
+        private void SpawnRadiationHazards()
+        {
+            if (_hazardContainer == null || _player == null)
+                return;
+
+            foreach (Node child in _hazardContainer.GetChildren())
+                child.QueueFree();
+
+            int seed = (_activeH3 ?? string.Empty).GetHashCode();
+            float x = 14f + Mathf.Abs(seed % 5);
+            float z = 10f + Mathf.Abs((seed / 7) % 6);
+
+            var zone = new RadiationZoneActor
+            {
+                Name = "RadiationZone_A",
+                RadiusMeters = 3.5f,
+                RadiationPerSecond = 3,
+                Position = _player.GlobalPosition + new Vector3(x, 0f, z)
+            };
+
+            _hazardContainer.AddChild(zone);
         }
 
         private async Task<bool> GenerateRemoteWorldAsync()
