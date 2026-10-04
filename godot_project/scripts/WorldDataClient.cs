@@ -97,6 +97,12 @@ namespace TerreZero.World.Generation
         [JsonPropertyName("height_meters")]
         public float HeightMeters { get; set; } = 6f;
 
+        [JsonPropertyName("world_version")]
+        public int WorldVersion { get; set; } = 1;
+
+        [JsonPropertyName("generator_version")]
+        public int GeneratorVersion { get; set; } = 3;
+
         [JsonPropertyName("geometry")]
         public GeoJsonGeometry Geometry { get; set; }
     }
