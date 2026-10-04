@@ -1,109 +1,291 @@
-# ☢️ TERRE ZÉRO : MMORPG & Survie Géolocalisée Micro-Voxel (Godot 4 C#)
+# ☢️ TERRE ZÉRO
 
-> **Un monde réel en micro-voxels destructibles (1 voxel = 20 cm) généré de manière déterministe via OpenStreetMap, avec Greedy Meshing pour mobile, streaming spatial Uber H3, filtre de Kalman GPS, véhicules modulaires et capture de Chimères.**
+Jeu de survie / exploration post-apocalyptique en **Godot 4 .NET (C#)**, construit à partir du monde réel.
 
----
+Le joueur choisit un point de départ proche de sa position machine. Ce point devient l'ancre fixe de la session : **H3 + OpenStreetMap + météo réelle** alimentent alors le monde 3D micro-voxel.
 
-## 🎮 1. Pitch & Vision Globale
+## Direction actuelle
 
-**Terre Zéro** est un jeu de survie post-apocalyptique multijoueur synchrone/asynchrone basé sur la géolocalisation réelle.
-La topographie du monde réel (bâtiments, voiries, parcs) est transcrite à la volée en un univers **micro-voxel (20 cm)** destructible chirurgicalement et constructible.
+TERRE ZÉRO est un jeu, pas une application Web.
 
-### Les 3 Boucles Fondamentales :
-1. **🧭 Exploration Nomade (IRL) :** Déplacements physiques réels avec filtre de Kalman EKF, rayon d'action sécurisé de $25\text{ m}$ (Bounding Bubble), radar de proximité et traque de Chimères.
-2. **⛏️ Survie & Forage Voxel :** Extraction chirurgicale des composants dans le décor (creuser la façade d'une usine pour extraire du cuivre, percer un mur de pharmacie pour des kits médicaux).
-3. **🏠 Sédentarisation (Le Bunker) :** Ancrage GPS de sa résidence réelle, construction voxel libre, concasseur/fonderie de matières premières, établi d'assemblage et assignation de Chimères.
+Stack principale :
 
----
+~~~text
+Godot 4 .NET
+    ↓
+Go backend
+    ↓
+PostgreSQL 16 + PostGIS
+    ├── OSM/H3
+    ├── monde persistant
+    └── deltas voxel
 
-## 🏃 2. Progression Physique du Personnage & Arbres de Maîtrise
+Open-Meteo → météo réelle
+GeoClue    → position desktop Linux avec consentement
+Overpass   → import OSM développement/cache
+~~~
 
-### A. Condition Physique Réelle (Paliers Kilométriques Cumulés)
-| Distance Cumulée | Trait Débloqué | Impact Concret en Jeu |
-| :--- | :--- | :--- |
-| **10 km** | **Foulée économique** | Réduit de $15\%$ la fatigue lors des sprints d'évasion face aux meutes. |
-| **50 km** | **Dos d'acier** | Débloque $+15\text{ kg}$ de charge maximale dans le sac à dos d'expédition. |
-| **100 km** | **Sens du pisteur** | Augmente le rayon de détection passive des créatures rares ($+10\text{ m}$). |
-| **250 km** | **Métabolisme durci** | Résistance passive aux zones de retombées radioactives et toxiques ($+20\%$). |
-| **500 km** | **Vagabond vétéran** | Vitesse de marche accrue ; consommation de rations réduite de moitié. |
+## Monde
 
-### B. Les 3 Voies de Spécialisation (Arbres de Compétences) :
-```
-                        [ ARBRE DU SURVIVANT ]
-                                  │
-         ┌────────────────────────┼────────────────────────┐
-         ▼                        ▼                        ▼
-  [ INGÉNIEUR ]            [ BIO-PISTEUR ]          [ BRIGAND / COMBAT ]
- (Voxel, Craft,           (Chimères, Scan,         (Armes, Forage lourd,
-  Défense de base)         Traque, Troc)            Survie hostile)
-```
-* **Voie A : Ingénieur de brèche :** *Découpe chirurgicale* ($-30\%$ perte noble), *Sonde de résonance*, *Béton armé rapide*, *Maître recycleur*, **Ultime : Surcharge d'atelier** ($-50\%$ énergie requise au bunker).
-* **Voie B : Bio-Pisteur :** *Fréquence de capture* ($+15\%$), *Écholocalisation 500m*, *Empathie mutante*, *Siphon génétique*, **Ultime : Lien synaptique double** (2 Chimères simultanées en escorte).
-* **Voie C : Ferrailleur lourd :** *Stabilisateur de tir*, *Perforateur thermique*, *Charge d'impact*, *Cuirasse de récup'*, **Ultime : Dernier rempart** ($5\text{ s}$ d'invulnérabilité en cas de coup fatal).
+- voxel : **20 cm**
+- chunk : **32³ voxels = 6,4 m**
+- greedy meshing
+- shader voxel rétro/toon
+- destruction et construction multi-chunks
+- streaming spatial H3 résolution 9
+- bâtiments et routes issus d'OpenStreetMap
+- intérieurs déterministes générés à partir des empreintes OSM
+- persistance des modifications sous forme de deltas
+- GeneratorVersion actuelle : **4**
 
-### C. Implants Cybernétiques (Greffes au Bunker) :
-1. **Implant Oculaire (Scanner Spectrométrique) :** Filtre thermique $\rightarrow$ Failles structurelles $\rightarrow$ Spectromètre de métaux.
-2. **Implant Rachidien (Exosquelette Dorsal) :** Décuple la charge utile et supprime le malus d'armes lourdes de forage.
-3. **Implant Cérébral (Interface de Piratage) :** Réduit de $50\%$ le temps d'injection des modules de contrôle.
-4. **Implant Dermique (Blindage Sous-Cutané) :** Grille sous-cutanée réduisant les dégâts d'acide et d'entailles.
+Generator v4 ajoute notamment :
 
-### D. Gestion de la Mort & Caisse de Largage (Death Crate 24h) :
-* **Réapparition immédiate à l'abri.**
-* **Dépôt de la caisse de mort** aux coordonnées GPS exactes avec **fenêtre de 24 heures réelles** pour marcher physiquement sur site et récupérer le sac de minerai.
-* **Matériel équipé et Chimères protégés** (seule la durabilité diminue).
+- routes différenciées ;
+- trottoirs ;
+- accotements ;
+- marquages routiers ;
+- vitrines contextuelles ;
+- parapets de toit ;
+- façades liées au type de bâtiment.
 
----
+## Monde réel
 
-## 🏎️ 3. Système de Véhicules & Conduite Hybride OSM
+### Localisation PC
 
-* **Collisions Hybrides :** Piste de roulement continue sur les vecteurs routiers OSM (`highway=*`) + broyage des obstacles voxels à la proue.
-* **Mode Convoi Nomade Autonome :** Le véhicule suit l'avatar à pied/vélo IRL en convoi, chargeant automatiquement le minerai extrait.
-* **3 Châssis Modulaires :** Moto-Scrap, Buggy léger, Camion blindé 6x6.
+Sur Linux / Pop!_OS :
 
----
+1. le joueur autorise la localisation ;
+2. GeoClue fournit un point machine approximatif ;
+3. le joueur choisit son départ dans un rayon de **5 km ou 10 km** ;
+4. le backend valide le point ;
+5. ce point devient l'ancre fixe du monde.
 
-## 🧬 4. Système des Chimères (Écologie OSM & Anatomie Voxel)
+Il n'y a pas de suivi GPS continu sur PC.
 
-* **Classification :** Technoïdes Lourds & Réseau / Biomutants Terrestres & Sylvestres.
-* **Ciblage Anatomique :** Membres locomoteurs, réservoirs de bile acide, plaques de blindage et noyau vital (**Overkill = Incapturable !**).
-* **Capture :** Puce d'Override IEM (Technoïdes) ou Injecteur Neurotoxique (Biomutants).
-* **Utilité au Bunker :** Générateur vivant ($+15\text{ à }+30\text{ kW}$), Sentinelle territoriale, Bête de somme ($+15\text{ kg}$ sac) et Foreuse assistée ($\times 3$).
+### OpenStreetMap
 
----
+Le backend peut remplir automatiquement une cellule H3 depuis Overpass lorsque le cache PostGIS est absent ou périmé.
 
-## 📐 5. Métrique & Performance Micro-Voxel
+Le cache OSM conserve notamment :
 
-* **Résolution :** $1\text{ voxel} = 0{,}2\text{ m}$ ($20\text{ cm}$).
-* **Format Chunk :** $32 \times 32 \times 32\text{ voxels}$ ($6{,}4\text{ m}$ d'arête).
-* **Encodage 16-bit (`ushort`) :** Matériaux, durabilité ($0..15$) et flags électriques.
-* **Greedy Meshing Mobile :** Réduction de **$-98\%$ de polygones GPU** ($< 600$ triangles par bâtiment contre $> 28\,000$ bruts).
+- bâtiments ;
+- types de bâtiments ;
+- noms ;
+- commerces / amenities ;
+- hauteurs / niveaux ;
+- routes ;
+- surfaces ;
+- nombre de voies.
 
----
+Voir `docs/OSM_INGESTION.md`.
 
-## 🛠️ 6. Structure du Projet Godot 4 (.NET / C#)
+**Données cartographiques © OpenStreetMap contributors.**
 
-```
-godot_project/
-├── project.godot               # Configuration Godot 4.3 (Renderer Forward+, Input Mapping ZQSD)
-├── scenes/
-│   ├── MainWorld.tscn          # Scène principale 3D, Sky & Fog volumétrique
-│   ├── Player.tscn             # CharacterBody3D, Caméra FPS, Raycast minage et Box selector
-│   └── VoxelChunk.tscn         # Instance de chunk 32³ avec MeshInstance3D et Trimesh Collision
-├── scripts/
-│   ├── KalmanGpsFilter.cs      # Filtre EKF GPS, anti-spoof vitesse (>30 km/h) et Bounding Bubble 25m
-│   ├── VoxelChunk.cs           # Grille 16-bit compacte et méthode chirurgicale CarveSphere
-│   ├── GreedyMesher.cs         # Algorithme Greedy Meshing multithread avec Vertex AO
-│   ├── OSMVoxelizer.cs         # Rasteriseur 2.5D des empreintes vectorielles OpenStreetMap
-│   ├── PlayerController.cs     # Contrôleur First-Person Minecraft-like, minage laser et pose de blocs
-│   ├── PlayerProgression.cs    # Paliers kilométriques, 3 arbres de compétences, implants et Death Crate
-│   ├── VehicleController.cs    # Conduite hybride OSM, broyage d'obstacles et convoi autonome nomade
-│   ├── ChimereManager.cs       # Spawns contextuels OSM, ciblage anatomique voxel et capture
-│   ├── BunkerManager.cs        # Ancrage domicile, fonderie, raffinerie et tourelles
-│   └── DeltaSyncManager.cs     # Sérialisation et diffusion réseau des paquets de delta RLE
-├── server_go/
-│   ├── main.go                 # Serveur HTTP/WebSocket Go avec hub spatial H3 Res 9
-│   └── schema.sql              # Schéma PostgreSQL 16 + PostGIS (GIST polygon, index H3)
-├── shaders/
-│   └── retro_voxel.gdshader    # Shader spatial rétro-moderne Lo-Fi Cyber-Scrap
-└── README_GODOT.md             # Guide de démarrage dans Godot Engine 4.3
-```
+### Météo réelle
+
+La météo du point d'ancrage influence réellement le rendu :
+
+- heure locale ;
+- température ;
+- humidité ;
+- couverture nuageuse ;
+- pluie ;
+- neige ;
+- vent ;
+- brouillard ;
+- orages ;
+- lumière du jour ;
+- surfaces mouillées ;
+- flaques ;
+- neige au sol ;
+- lampadaires ;
+- végétation animée par le vent.
+
+Le backend met les réponses météo en cache pendant 10 minutes.
+
+Voir `docs/REAL_WORLD_WEATHER.md`.
+
+## Direction artistique
+
+Le monde reste une 3D propre, lisible et relativement low-poly/voxel, avec une identité rétro volontaire :
+
+- palette post-apocalyptique désaturée ;
+- toon shading léger ;
+- patine procédurale ;
+- météo intégrée aux matériaux ;
+- HUD sombre / ambre ;
+- interfaces combat inspirées des JRPG rétro ;
+- signalétique OSM discrète ;
+- lampadaires, barrières, débris, végétation et flaques procéduraux.
+
+## Chimères
+
+Le système jouable comprend déjà :
+
+- rencontres visibles dans le monde 3D ;
+- combat rapide 1v1 ;
+- équipe de 3 ;
+- changement de compagnon ;
+- 4 techniques maximum ;
+- dégâts / stabilité / contrôle / support ;
+- affinités ;
+- capture ;
+- variantes Rare et Alpha ;
+- XP et niveaux ;
+- lien ;
+- dressage ;
+- deux stades d'évolution ;
+- sauvegarde locale.
+
+Le premier bestiaire contient actuellement 9 espèces :
+
+- Mordrail
+- Nébuli
+- Cerf d'Écorce
+- Voltac
+- Hydrune
+- Cendrex
+- Mycoryx
+- Prismole
+- Ferrale
+
+Voir `docs/CHIMERES_COMBAT_GDD.md`.
+
+## Survie et progression
+
+Fondations actuelles :
+
+- santé ;
+- endurance ;
+- sprint ;
+- radiation ;
+- soins ;
+- inventaire avec poids ;
+- loot déterministe ;
+- crafting ;
+- quêtes ;
+- bunker ;
+- raffinerie ;
+- infirmerie ;
+- dressage ;
+- stockage ;
+- progression joueur ;
+- exploration persistante.
+
+Voir `docs/GAMEPLAY_FOUNDATIONS.md`.
+
+## Contrôles PC actuels
+
+~~~text
+ZQSD / WASD   déplacement
+Souris        caméra
+Shift         sprint
+Molette       changer le matériau de construction
+Clic gauche   extraire / détruire
+Clic droit    construire
+F             scanner X-Ray
+I             terminal de terrain
+C             rencontre Chimère debug
+T             dressage
+H             soin
+Échap         libérer la souris
+~~~
+
+Le voxel ciblé est surligné avec la couleur du matériau actuellement sélectionné.
+
+## Lancement Pop!_OS
+
+### Vérifier l'environnement
+
+~~~bash
+bash tools/check_popos_dev.sh
+~~~
+
+### Backend + PostGIS
+
+~~~bash
+docker compose up -d --build
+~~~
+
+Vérifier :
+
+~~~bash
+curl http://127.0.0.1:8080/api/v1/health
+~~~
+
+### Godot
+
+Ouvrir :
+
+~~~text
+godot_project/project.godot
+~~~
+
+Pour utiliser les données réelles, activer `UseRemoteWorldData` sur `WorldBootstrap`.
+
+Voir `docs/POP_OS_SETUP.md`.
+
+## Structure utile
+
+~~~text
+Terre-Z-ro/
+├── godot_project/
+│   ├── project.godot
+│   ├── scenes/
+│   ├── scripts/
+│   ├── shaders/
+│   └── server_go/
+│       ├── main.go
+│       ├── weather.go
+│       ├── osm_ingest.go
+│       ├── schema.sql
+│       └── Dockerfile
+├── docs/
+│   ├── CHIMERES_COMBAT_GDD.md
+│   ├── GAMEPLAY_FOUNDATIONS.md
+│   ├── GENERATOR_V4.md
+│   ├── OSM_INGESTION.md
+│   ├── POP_OS_SETUP.md
+│   └── REAL_WORLD_WEATHER.md
+├── tools/
+│   ├── check_popos_dev.sh
+│   └── validate_godot_resources.py
+└── compose.yml
+~~~
+
+## CI
+
+La CI vérifie uniquement les composants utiles au jeu :
+
+- ressources/scènes Godot ;
+- compilation C# ;
+- backend Go ;
+- tests Go ;
+- build Docker du backend.
+
+Le prototype Web historique a été retiré de la branche principale.
+
+## Limites actuelles connues
+
+- l'import OSM automatique gère les `way` bâtiments/routes ; les relations multipolygon viendront plus tard ;
+- les intérieurs sont déterministes mais encore simples ;
+- les Chimères 3D utilisent encore des formes procédurales temporaires ;
+- l'authentification multijoueur n'est pas encore en place ;
+- les captures/inventaires ne sont pas encore autoritaires côté serveur ;
+- les collisions voxel sont reconstruites par chunk et devront être optimisées pour les gros mondes.
+
+## Principe de développement
+
+~~~text
+monde réel stable
+    ↓
+génération déterministe
+    ↓
+deltas persistants
+    ↓
+gameplay
+    ↓
+présentation rétro propre
+~~~
+
+Les changements de géométrie déterministe doivent toujours incrémenter `GeneratorVersion`.
