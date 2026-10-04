@@ -23,7 +23,7 @@ import (
 const (
 	maxMessageSize  = 16 * 1024
 	worldVersion    = 1
-	generatorVersion = 3
+	generatorVersion = 4
 )
 
 var h3Pattern = regexp.MustCompile("^[0-9a-fA-F]{15,16}$")
@@ -212,7 +212,7 @@ func (s *postgresStore) LoadWorldCell(ctx context.Context, h3 string) (WorldCell
 		       COALESCE(levels, 2),
 		       COALESCE(height_meters, 6.0),
 		       COALESCE(world_version, 1),
-		       COALESCE(generator_version, 3),
+		       COALESCE(generator_version, 4),
 		       ST_AsGeoJSON(geom)
 		FROM osm_buildings
 		WHERE h3_index = $1
