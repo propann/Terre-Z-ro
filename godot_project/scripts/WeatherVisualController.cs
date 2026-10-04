@@ -17,6 +17,8 @@ namespace TerreZero.World.Weather
         public float CurrentSurfaceWetness { get; private set; }
         public bool CurrentIsDay { get; private set; } = true;
         public float CurrentStormIntensity { get; private set; }
+        public float CurrentWindSpeedKmh { get; private set; }
+        public float CurrentWindDirectionDegrees { get; private set; }
 
         public void Initialize(
             WorldEnvironment worldEnvironment,
@@ -62,6 +64,9 @@ namespace TerreZero.World.Weather
             );
             bool isDay = current.IsDay == 1;
             CurrentIsDay = isDay;
+            CurrentWindSpeedKmh = (float)current.WindSpeedKmh;
+            CurrentWindDirectionDegrees = (float)current.WindDirectionDeg;
+
             CurrentStormIntensity =
                 current.WeatherCode >= 95 &&
                 current.WeatherCode <= 99
