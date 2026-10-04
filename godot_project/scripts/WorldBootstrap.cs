@@ -34,6 +34,7 @@ namespace TerreZero.World
         private readonly ConcurrentQueue<VoxelDeltaEvent> _remoteDeltas = new();
 
         private Node3D _container;
+        private Node3D _chimereContainer;
         private Node3D _player;
         private PlayerController _playerController;
         private StartLocationUI _startUI;
@@ -41,6 +42,8 @@ namespace TerreZero.World
         private ChimereBattleUI _battleUI;
         private ChimereTrainingUI _trainingUI;
         private readonly ChimereEncounterDirector _encounters = new();
+        private PackedScene _chimereActorScene;
+        private ChimereWorldActor _activeEncounterActor;
         private VoxelWorldGrid _world;
         private string _activeH3;
         private double _streamTimer;
@@ -51,6 +54,8 @@ namespace TerreZero.World
         public override async void _Ready()
         {
             _container = GetNode<Node3D>("VoxelWorldContainer");
+            _chimereContainer = GetNode<Node3D>("ChimereWorldContainer");
+            _chimereActorScene = GD.Load<PackedScene>("res://scenes/ChimereWorldActor.tscn");
             _player = GetNode<Node3D>("Player");
             _playerController = _player as PlayerController;
             _startUI = GetNodeOrNull<StartLocationUI>("StartLocationUI");
@@ -140,6 +145,15 @@ namespace TerreZero.World
 
             if (_trainingUI != null)
                 _trainingUI.Closed -= OnTrainingClosed;
+
+            if (_chimereContainer != null)
+            {
+                foreach (Node child in _chimereContainer.GetChildren())
+                {
+                    if (child is ChimereWorldActor actor)
+                        actor.EncounterRequested -= OnWorldEncounterRequested;
+                }
+            }
         }
 
         private async void OnStartConfirmed(double latitude, double longitude, int radiusKm)
@@ -216,11 +230,34 @@ namespace TerreZero.World
             string context = ResolveEncounterContext();
             int seed = (_activeH3 ?? string.Empty).GetHashCode() ^ System.Environment.TickCount;
             ChimereCombatant wild = _encounters.CreateEncounter(_activeH3, context);
+            StartEncounter(wild, null, seed);
+        }
 
+        private void StartEncounter(
+            ChimereCombatant wild,
+            ChimereWorldActor actor,
+            int seed)
+        {
+            if (_battleUI == null || _overlayOpen || wild == null)
+                return;
+
+            _activeEncounterActor = actor;
             _overlayOpen = true;
             _playerController?.SetGameplayEnabled(false);
             _hud?.Hide();
             _battleUI.StartBattle(wild, seed);
+        }
+
+        private void OnWorldEncounterRequested(
+            ChimereWorldActor actor,
+            ChimereCombatant wild)
+        {
+            int seed =
+                (_activeH3 ?? string.Empty).GetHashCode() ^
+                wild.SpeciesId.GetHashCode() ^
+                wild.Level;
+
+            StartEncounter(wild, actor, seed);
         }
 
         private void OpenTraining()
@@ -236,6 +273,16 @@ namespace TerreZero.World
 
         private void OnBattleClosed()
         {
+            if (_activeEncounterActor != null)
+            {
+                if (_battleUI != null && _battleUI.EncounterResolved)
+                    _activeEncounterActor.Consume();
+                else
+                    _activeEncounterActor.Reactivate();
+
+                _activeEncounterActor = null;
+            }
+
             _overlayOpen = false;
             ChimereSaveStore.Save();
             EnterGameplay();
@@ -318,6 +365,40 @@ namespace TerreZero.World
             }
 
             _world.UpdateVisibility(_player.GlobalPosition, StreamRadiusChunks);
+            SpawnWorldChimeres();
+        }
+
+        private void SpawnWorldChimeres()
+        {
+            if (_chimereContainer == null || _chimereActorScene == null || _player == null)
+                return;
+
+            foreach (Node child in _chimereContainer.GetChildren())
+                child.QueueFree();
+
+            string context = ResolveEncounterContext();
+            Vector3 origin = _player.GlobalPosition;
+            Vector3[] offsets =
+            {
+                new Vector3(8f, 0f, 5f),
+                new Vector3(-10f, 0f, 7f),
+                new Vector3(5f, 0f, -12f)
+            };
+
+            for (int i = 0; i < offsets.Length; i++)
+            {
+                ChimereCombatant wild =
+                    _encounters.CreateEncounter(_activeH3, $"{context}:{i}");
+
+                var actor = _chimereActorScene.Instantiate<ChimereWorldActor>();
+                actor.ContextTag = context;
+                actor.EncounterSeed = i + 1;
+                actor.Position = origin + offsets[i];
+                actor.EncounterRequested += OnWorldEncounterRequested;
+
+                _chimereContainer.AddChild(actor);
+                actor.Configure(wild);
+            }
         }
 
         private async Task<bool> GenerateRemoteWorldAsync()
