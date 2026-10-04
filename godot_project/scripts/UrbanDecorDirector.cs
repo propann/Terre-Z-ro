@@ -43,11 +43,17 @@ namespace TerreZero.World.Generation
             int barrierTarget = industrial ? 10 : natural ? 2 : 5;
             int debrisTarget = industrial ? 16 : natural ? 6 : 11;
             int plantTarget = natural ? 22 : industrial ? 5 : 12;
+            int wreckTarget = natural ? 1 : industrial ? 6 : 4;
+            int furnitureTarget = natural ? 2 : industrial ? 2 : 6;
+            int signTarget = natural ? 1 : industrial ? 4 : 4;
 
             int lamps = 0;
             int barriers = 0;
             int debris = 0;
             int plants = 0;
+            int wrecks = 0;
+            int furniture = 0;
+            int signs = 0;
 
             for (int attempt = 0; attempt < AttemptCount; attempt++)
             {
@@ -94,6 +100,43 @@ namespace TerreZero.World.Generation
                         rng.NextFloat() * 360f
                     );
                     barriers++;
+                    continue;
+                }
+
+                if (ground == VoxelMaterial.Asphalt &&
+                    wrecks < wreckTarget)
+                {
+                    AddVehicleWreck(
+                        parent,
+                        position,
+                        rng
+                    );
+                    wrecks++;
+                    continue;
+                }
+
+                if (ground == VoxelMaterial.Sidewalk &&
+                    furniture < furnitureTarget)
+                {
+                    AddStreetFurniture(
+                        parent,
+                        position,
+                        rng
+                    );
+                    furniture++;
+                    continue;
+                }
+
+                if ((ground == VoxelMaterial.Sidewalk ||
+                     ground == VoxelMaterial.Asphalt) &&
+                    signs < signTarget)
+                {
+                    AddBrokenSign(
+                        parent,
+                        position,
+                        rng
+                    );
+                    signs++;
                     continue;
                 }
 
@@ -420,6 +463,264 @@ namespace TerreZero.World.Generation
                 },
                 Position = new Vector3(0f, 0.48f, 0f),
                 MaterialOverride = warning
+            });
+        }
+
+        private static void AddVehicleWreck(
+            Node3D parent,
+            Vector3 position,
+            DeterministicRng rng)
+        {
+            var root = new Node3D
+            {
+                Name = "VehicleWreck",
+                Position = position,
+                RotationDegrees = new Vector3(
+                    rng.NextRange(-4f, 4f),
+                    rng.NextFloat() * 360f,
+                    rng.NextRange(-6f, 6f)
+                )
+            };
+            parent.AddChild(root);
+
+            Color bodyColor = rng.NextInt(0, 3) switch
+            {
+                0 => new Color(0.34f, 0.16f, 0.12f),
+                1 => new Color(0.15f, 0.20f, 0.22f),
+                _ => new Color(0.28f, 0.27f, 0.22f)
+            };
+
+            var body = MakeMaterial(
+                bodyColor,
+                metallic: 0.48f,
+                roughness: 0.82f
+            );
+
+            var dark = MakeMaterial(
+                new Color(0.06f, 0.07f, 0.07f),
+                metallic: 0.1f,
+                roughness: 0.94f
+            );
+
+            root.AddChild(new MeshInstance3D
+            {
+                Mesh = new BoxMesh
+                {
+                    Size = new Vector3(2.5f, 0.46f, 1.22f)
+                },
+                Position = new Vector3(0f, 0.38f, 0f),
+                MaterialOverride = body
+            });
+
+            root.AddChild(new MeshInstance3D
+            {
+                Mesh = new BoxMesh
+                {
+                    Size = new Vector3(1.25f, 0.42f, 1.02f)
+                },
+                Position = new Vector3(-0.15f, 0.76f, 0f),
+                RotationDegrees = new Vector3(
+                    rng.NextRange(-5f, 5f),
+                    0f,
+                    rng.NextRange(-7f, 7f)
+                ),
+                MaterialOverride = body
+            });
+
+            for (int sx = -1; sx <= 1; sx += 2)
+            for (int sz = -1; sz <= 1; sz += 2)
+            {
+                root.AddChild(new MeshInstance3D
+                {
+                    Mesh = new CylinderMesh
+                    {
+                        TopRadius = 0.22f,
+                        BottomRadius = 0.22f,
+                        Height = 0.16f
+                    },
+                    Position = new Vector3(
+                        sx * 0.78f,
+                        0.20f,
+                        sz * 0.57f
+                    ),
+                    RotationDegrees = new Vector3(90f, 0f, 0f),
+                    MaterialOverride = dark
+                });
+            }
+
+            if (rng.NextFloat() > 0.45f)
+            {
+                root.AddChild(new MeshInstance3D
+                {
+                    Mesh = new BoxMesh
+                    {
+                        Size = new Vector3(0.82f, 0.06f, 0.84f)
+                    },
+                    Position = new Vector3(1.1f, 0.62f, 0f),
+                    RotationDegrees = new Vector3(
+                        rng.NextRange(-28f, -10f),
+                        0f,
+                        0f
+                    ),
+                    MaterialOverride = body
+                });
+            }
+        }
+
+        private static void AddStreetFurniture(
+            Node3D parent,
+            Vector3 position,
+            DeterministicRng rng)
+        {
+            bool bench = rng.NextFloat() > 0.38f;
+            var root = new Node3D
+            {
+                Name = bench ? "BrokenBench" : "StreetBin",
+                Position = position,
+                RotationDegrees = new Vector3(
+                    0f,
+                    rng.NextFloat() * 360f,
+                    0f
+                )
+            };
+            parent.AddChild(root);
+
+            var metal = MakeMaterial(
+                new Color(0.16f, 0.18f, 0.18f),
+                metallic: 0.46f,
+                roughness: 0.76f
+            );
+
+            var wood = MakeMaterial(
+                new Color(0.30f, 0.20f, 0.12f),
+                metallic: 0.02f,
+                roughness: 0.94f
+            );
+
+            if (bench)
+            {
+                root.AddChild(new MeshInstance3D
+                {
+                    Mesh = new BoxMesh
+                    {
+                        Size = new Vector3(1.45f, 0.12f, 0.42f)
+                    },
+                    Position = new Vector3(0f, 0.42f, 0f),
+                    RotationDegrees = new Vector3(
+                        0f,
+                        0f,
+                        rng.NextRange(-3f, 3f)
+                    ),
+                    MaterialOverride = wood
+                });
+
+                root.AddChild(new MeshInstance3D
+                {
+                    Mesh = new BoxMesh
+                    {
+                        Size = new Vector3(1.45f, 0.46f, 0.08f)
+                    },
+                    Position = new Vector3(0f, 0.69f, 0.17f),
+                    RotationDegrees = new Vector3(
+                        rng.NextRange(-8f, 5f),
+                        0f,
+                        0f
+                    ),
+                    MaterialOverride = wood
+                });
+
+                for (int side = -1; side <= 1; side += 2)
+                {
+                    root.AddChild(new MeshInstance3D
+                    {
+                        Mesh = new BoxMesh
+                        {
+                            Size = new Vector3(0.08f, 0.46f, 0.08f)
+                        },
+                        Position = new Vector3(
+                            side * 0.54f,
+                            0.23f,
+                            0f
+                        ),
+                        MaterialOverride = metal
+                    });
+                }
+            }
+            else
+            {
+                root.AddChild(new MeshInstance3D
+                {
+                    Mesh = new CylinderMesh
+                    {
+                        TopRadius = 0.30f,
+                        BottomRadius = 0.32f,
+                        Height = 0.72f
+                    },
+                    Position = new Vector3(0f, 0.36f, 0f),
+                    RotationDegrees = new Vector3(
+                        rng.NextRange(-9f, 9f),
+                        0f,
+                        rng.NextRange(-9f, 9f)
+                    ),
+                    MaterialOverride = metal
+                });
+            }
+        }
+
+        private static void AddBrokenSign(
+            Node3D parent,
+            Vector3 position,
+            DeterministicRng rng)
+        {
+            var root = new Node3D
+            {
+                Name = "BrokenRoadSign",
+                Position = position,
+                RotationDegrees = new Vector3(
+                    rng.NextRange(-12f, 12f),
+                    rng.NextFloat() * 360f,
+                    rng.NextRange(-10f, 10f)
+                )
+            };
+            parent.AddChild(root);
+
+            var pole = MakeMaterial(
+                new Color(0.24f, 0.27f, 0.28f),
+                metallic: 0.62f,
+                roughness: 0.68f
+            );
+
+            var sign = MakeMaterial(
+                new Color(0.58f, 0.20f, 0.12f),
+                metallic: 0.18f,
+                roughness: 0.74f
+            );
+
+            root.AddChild(new MeshInstance3D
+            {
+                Mesh = new CylinderMesh
+                {
+                    TopRadius = 0.035f,
+                    BottomRadius = 0.045f,
+                    Height = 1.65f
+                },
+                Position = new Vector3(0f, 0.82f, 0f),
+                MaterialOverride = pole
+            });
+
+            root.AddChild(new MeshInstance3D
+            {
+                Mesh = new BoxMesh
+                {
+                    Size = new Vector3(0.62f, 0.62f, 0.05f)
+                },
+                Position = new Vector3(0f, 1.50f, 0f),
+                RotationDegrees = new Vector3(
+                    0f,
+                    0f,
+                    rng.NextRange(-18f, 18f)
+                ),
+                MaterialOverride = sign
             });
         }
 
