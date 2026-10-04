@@ -83,6 +83,17 @@ namespace TerreZero.Chimeres
             return chimere;
         }
 
+        public static ChimereCombatant CreateBySpecies(string speciesId, int level = 1)
+        {
+            return speciesId switch
+            {
+                "mordrail" => CreateMordrail(level),
+                "nebuli" => CreateNebuli(level),
+                "cerf_ecorce" => CreateCerfEcorce(level),
+                _ => CreateNebuli(level)
+            };
+        }
+
         public static ChimereCombatant CreateWildFromContext(string context, int seed)
         {
             var random = new Random(seed);
