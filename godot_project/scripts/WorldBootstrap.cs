@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
 using Godot;
+using TerreZero.Chimeres;
 using TerreZero.Network;
 using TerreZero.UI;
 using TerreZero.World.Generation;
@@ -37,11 +38,15 @@ namespace TerreZero.World
         private PlayerController _playerController;
         private StartLocationUI _startUI;
         private GameHUD _hud;
+        private ChimereBattleUI _battleUI;
+        private ChimereTrainingUI _trainingUI;
+        private readonly ChimereEncounterDirector _encounters = new();
         private VoxelWorldGrid _world;
         private string _activeH3;
         private double _streamTimer;
         private bool _startValidated;
         private bool _loadingStart;
+        private bool _overlayOpen;
 
         public override async void _Ready()
         {
@@ -50,7 +55,20 @@ namespace TerreZero.World
             _playerController = _player as PlayerController;
             _startUI = GetNodeOrNull<StartLocationUI>("StartLocationUI");
             _hud = GetNodeOrNull<GameHUD>("GameHUD");
+            _battleUI = GetNodeOrNull<ChimereBattleUI>("ChimereBattleUI");
+            _trainingUI = GetNodeOrNull<ChimereTrainingUI>("ChimereTrainingUI");
             _activeH3 = DemoH3Index;
+
+            ChimereSaveStore.Load();
+
+            if (_battleUI != null)
+            {
+                _battleUI.BattleClosed += OnBattleClosed;
+                _battleUI.ChimereCaptured += OnChimereCaptured;
+            }
+
+            if (_trainingUI != null)
+                _trainingUI.Closed += OnTrainingClosed;
 
             DeltaSyncManager.RemoteDeltaReceived += OnRemoteDeltaReceived;
             if (_playerController != null)
@@ -71,6 +89,25 @@ namespace TerreZero.World
 
             await LoadActiveCellAsync(allowDemoFallback: true);
             EnterGameplay();
+        }
+
+        public override void _UnhandledInput(InputEvent @event)
+        {
+            if (_overlayOpen || _playerController == null || !_playerController.GameplayEnabled)
+                return;
+
+            if (Input.IsActionJustPressed("encounter_test"))
+            {
+                StartEncounter();
+                GetViewport().SetInputAsHandled();
+                return;
+            }
+
+            if (Input.IsActionJustPressed("chimere_training"))
+            {
+                OpenTraining();
+                GetViewport().SetInputAsHandled();
+            }
         }
 
         public override void _Process(double delta)
@@ -94,6 +131,15 @@ namespace TerreZero.World
 
             if (_startUI != null)
                 _startUI.StartConfirmed -= OnStartConfirmed;
+
+            if (_battleUI != null)
+            {
+                _battleUI.BattleClosed -= OnBattleClosed;
+                _battleUI.ChimereCaptured -= OnChimereCaptured;
+            }
+
+            if (_trainingUI != null)
+                _trainingUI.Closed -= OnTrainingClosed;
         }
 
         private async void OnStartConfirmed(double latitude, double longitude, int radiusKm)
@@ -162,11 +208,72 @@ namespace TerreZero.World
             }
         }
 
+        private void StartEncounter()
+        {
+            if (_battleUI == null || _overlayOpen)
+                return;
+
+            string context = ResolveEncounterContext();
+            int seed = (_activeH3 ?? string.Empty).GetHashCode() ^ Environment.TickCount;
+            ChimereCombatant wild = _encounters.CreateEncounter(_activeH3, context);
+
+            _overlayOpen = true;
+            _playerController?.SetGameplayEnabled(false);
+            _hud?.Hide();
+            _battleUI.StartBattle(wild, seed);
+        }
+
+        private void OpenTraining()
+        {
+            if (_trainingUI == null || _overlayOpen)
+                return;
+
+            _overlayOpen = true;
+            _playerController?.SetGameplayEnabled(false);
+            _hud?.Hide();
+            _trainingUI.Open();
+        }
+
+        private void OnBattleClosed()
+        {
+            _overlayOpen = false;
+            ChimereSaveStore.Save();
+            EnterGameplay();
+        }
+
+        private void OnTrainingClosed()
+        {
+            _overlayOpen = false;
+            ChimereSaveStore.Save();
+            EnterGameplay();
+        }
+
+        private void OnChimereCaptured(ChimereCombatant chimere)
+        {
+            _hud?.SetHint(
+                $"CAPTURE : {chimere.Name.ToUpperInvariant()}  •  T : DRESSAGE  •  C : RENCONTRE"
+            );
+        }
+
+        private string ResolveEncounterContext()
+        {
+            if (string.IsNullOrWhiteSpace(_activeH3))
+                return "residential";
+
+            char last = char.ToLowerInvariant(_activeH3[^1]);
+            return last switch
+            {
+                '0' or '1' or '2' or '3' => "industrial railway",
+                '4' or '5' or '6' or '7' => "park natural wood",
+                _ => "residential urban"
+            };
+        }
+
         private void EnterGameplay()
         {
             _hud?.Show();
             _hud?.SetSector(_activeH3);
-            _hud?.SetHint("CLIC G : EXTRAIRE   •   CLIC D : CONSTRUIRE   •   F : X-RAY");
+            _hud?.SetHint("CLIC G : EXTRAIRE • CLIC D : CONSTRUIRE • F : X-RAY • C : CHIMÈRE • T : DRESSAGE");
             _playerController?.SetGameplayEnabled(true);
         }
 
