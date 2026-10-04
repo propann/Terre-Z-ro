@@ -271,7 +271,22 @@ namespace TerreZero.World.Weather
                 ? "MÉTÉO RÉELLE"
                 : source;
 
-            return $"{condition}  {current.TemperatureC:F0}°C  •  VENT {current.WindSpeedKmh:F0} KM/H  •  {provider}";
+            string localClock = "--:--";
+            if (DateTime.TryParse(
+                current.Time,
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.AssumeLocal,
+                out DateTime localTime))
+            {
+                localClock = localTime.ToString(
+                    "HH:mm",
+                    CultureInfo.InvariantCulture
+                );
+            }
+
+            return $"{condition}  {current.TemperatureC:F0}°C  •  " +
+                   $"VENT {current.WindSpeedKmh:F0} KM/H  •  " +
+                   $"{localClock}  •  {provider}";
         }
     }
 }
