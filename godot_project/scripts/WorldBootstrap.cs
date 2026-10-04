@@ -45,6 +45,7 @@ namespace TerreZero.World
         private GameHUD _hud;
         private ChimereBattleUI _battleUI;
         private ChimereTrainingUI _trainingUI;
+        private FieldTerminalUI _fieldTerminal;
         private readonly ChimereEncounterDirector _encounters = new();
         private PackedScene _chimereActorScene;
         private ChimereWorldActor _activeEncounterActor;
@@ -70,6 +71,9 @@ namespace TerreZero.World
             _hud = GetNodeOrNull<GameHUD>("GameHUD");
             _battleUI = GetNodeOrNull<ChimereBattleUI>("ChimereBattleUI");
             _trainingUI = GetNodeOrNull<ChimereTrainingUI>("ChimereTrainingUI");
+            _fieldTerminal = new FieldTerminalUI { Name = "FieldTerminalUI" };
+            AddChild(_fieldTerminal);
+            _fieldTerminal.Closed += OnFieldTerminalClosed;
             _activeH3 = DemoH3Index;
 
             GlobalSaveStore.LoadAll();
@@ -127,6 +131,12 @@ namespace TerreZero.World
 
             if (@event is InputEventKey key && key.Pressed && !key.Echo)
             {
+                if (key.Keycode == Key.I)
+                {
+                    OpenFieldTerminal();
+                    GetViewport().SetInputAsHandled();
+                    return;
+                }
                 if (key.Keycode == Key.H)
                 {
                     bool healed = GameplayProgressionService.TryUseMedGel();
@@ -207,6 +217,9 @@ namespace TerreZero.World
 
             if (_trainingUI != null)
                 _trainingUI.Closed -= OnTrainingClosed;
+
+            if (_fieldTerminal != null)
+                _fieldTerminal.Closed -= OnFieldTerminalClosed;
 
             if (_chimereContainer != null)
             {
@@ -327,6 +340,23 @@ namespace TerreZero.World
             StartEncounter(wild, actor, seed);
         }
 
+        private void OpenFieldTerminal()
+        {
+            if (_fieldTerminal == null || _overlayOpen)
+                return;
+
+            _overlayOpen = true;
+            _playerController?.SetGameplayEnabled(false);
+            _hud?.Hide();
+            _fieldTerminal.Open();
+        }
+
+        private void OnFieldTerminalClosed()
+        {
+            _overlayOpen = false;
+            EnterGameplay();
+        }
+
         private void OpenTraining()
         {
             if (_trainingUI == null || _overlayOpen)
@@ -387,7 +417,7 @@ namespace TerreZero.World
         {
             _hud?.Show();
             _hud?.SetSector(_activeH3);
-            _hud?.SetHint("CLIC G : EXTRAIRE • CLIC D : CONSTRUIRE • F : X-RAY • C : CHIMÈRE • T : DRESSAGE • H : SOIN");
+            _hud?.SetHint("I : TERMINAL • C : CHIMÈRE • T : DRESSAGE • F : X-RAY • H : SOIN • SHIFT : SPRINT");
             _playerController?.SetGameplayEnabled(true);
         }
 
