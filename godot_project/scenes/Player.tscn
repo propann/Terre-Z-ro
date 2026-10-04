@@ -1,6 +1,7 @@
-[gd_scene load_steps=3 format=3 uid="uid://c8375b429f12"]
+[gd_scene load_steps=4 format=3 uid="uid://c8375b429f12"]
 
 [ext_resource type="Script" path="res://scripts/PlayerController.cs" id="1_controller"]
+[ext_resource type="Script" path="res://scripts/PlayerSurvivalAdapter.cs" id="2_survival"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_player"]
 radius = 0.35
