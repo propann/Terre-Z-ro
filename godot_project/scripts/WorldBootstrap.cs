@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Threading.Tasks;
 using Godot;
 using TerreZero.Chimeres;
+using TerreZero.Gameplay;
 using TerreZero.Network;
 using TerreZero.UI;
 using TerreZero.World.Generation;
@@ -64,7 +65,7 @@ namespace TerreZero.World
             _trainingUI = GetNodeOrNull<ChimereTrainingUI>("ChimereTrainingUI");
             _activeH3 = DemoH3Index;
 
-            ChimereSaveStore.Load();
+            GlobalSaveStore.LoadAll();
 
             if (_battleUI != null)
             {
@@ -154,6 +155,8 @@ namespace TerreZero.World
                         actor.EncounterRequested -= OnWorldEncounterRequested;
                 }
             }
+
+            GlobalSaveStore.SaveAll();
         }
 
         private async void OnStartConfirmed(double latitude, double longitude, int radiusKm)
@@ -245,7 +248,8 @@ namespace TerreZero.World
             _overlayOpen = true;
             _playerController?.SetGameplayEnabled(false);
             _hud?.Hide();
-            _battleUI.StartBattle(wild, seed);
+            string context = actor?.ContextTag ?? ResolveEncounterContext();
+            _battleUI.StartBattle(wild, seed, context);
         }
 
         private void OnWorldEncounterRequested(
@@ -284,14 +288,14 @@ namespace TerreZero.World
             }
 
             _overlayOpen = false;
-            ChimereSaveStore.Save();
+            GlobalSaveStore.SaveAll();
             EnterGameplay();
         }
 
         private void OnTrainingClosed()
         {
             _overlayOpen = false;
-            ChimereSaveStore.Save();
+            GlobalSaveStore.SaveAll();
             EnterGameplay();
         }
 
