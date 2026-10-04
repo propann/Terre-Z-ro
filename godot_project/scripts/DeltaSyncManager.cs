@@ -16,7 +16,7 @@ namespace TerreZero.Network
         public int WorldVersion { get; set; } = 1;
 
         [JsonPropertyName("generator_version")]
-        public int GeneratorVersion { get; set; } = 3;
+        public int GeneratorVersion { get; set; } = 4;
 
         [JsonPropertyName("h3_index")]
         public string H3Index { get; set; }
@@ -75,7 +75,7 @@ namespace TerreZero.Network
             var delta = new VoxelDeltaEvent
             {
                 WorldVersion = 1,
-                GeneratorVersion = 3,
+                GeneratorVersion = 4,
                 H3Index = h3Index,
                 ChunkCoords = new[] { chunkCoord.X, chunkCoord.Y, chunkCoord.Z },
                 LocalVoxel = new[] { localVoxel.X, localVoxel.Y, localVoxel.Z },
