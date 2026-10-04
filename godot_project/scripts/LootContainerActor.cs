@@ -26,7 +26,7 @@ namespace TerreZero.World
                 _opened = true;
                 Monitoring = false;
                 _label.Text = "CACHE // VIDE";
-                Modulate = new Color(0.55f, 0.55f, 0.55f, 0.7f);
+                DimOpenedCache();
             }
             else
             {
@@ -86,6 +86,16 @@ namespace TerreZero.World
             }
         }
 
+        private void DimOpenedCache()
+        {
+            var mesh = GetNodeOrNull<MeshInstance3D>("MeshInstance3D");
+            if (mesh?.MaterialOverride is StandardMaterial3D material)
+            {
+                material.AlbedoColor = new Color(0.10f, 0.12f, 0.11f, 1f);
+                material.EmissionEnergyMultiplier = 0.08f;
+            }
+        }
+
         private void OnBodyEntered(Node3D body)
         {
             if (_opened || body is not TerreZero.World.Voxel.PlayerController)
@@ -109,9 +119,10 @@ namespace TerreZero.World
             GlobalSaveStore.SaveAll();
             Looted?.Invoke(this, bundle);
 
+            DimOpenedCache();
+
             var tween = CreateTween();
             tween.TweenProperty(this, "scale", Vector3.One * 0.75f, 0.18f);
-            tween.TweenProperty(this, "modulate:a", 0.25f, 0.25f);
         }
     }
 }
