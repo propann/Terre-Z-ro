@@ -1,0 +1,37 @@
+services:
+  postgis:
+    image: postgis/postgis:16-3.5
+    environment:
+      POSTGRES_DB: terre_zero
+      POSTGRES_USER: terre_zero
+      POSTGRES_PASSWORD: terre_zero_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - terre_zero_postgis:/var/lib/postgresql/data
+      - ./godot_project/server_go/schema.sql:/docker-entrypoint-initdb.d/001-terre-zero.sql:ro
+      - ./godot_project/server_go/schema.sql:/schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U terre_zero -d terre_zero"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+
+  backend:
+    build:
+      context: ./godot_project/server_go
+    environment:
+      PORT: "8080"
+      DATABASE_URL: postgres://terre_zero:terre_zero_dev@postgis:5432/terre_zero?sslmode=disable
+      OSM_CACHE_TTL_HOURS: "168"
+      OSM_USER_AGENT: TerreZero-dev (+https://github.com/propann/Terre-Z-ro)
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgis:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  terre_zero_postgis:
