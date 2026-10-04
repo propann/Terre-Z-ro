@@ -60,7 +60,14 @@ namespace TerreZero.World.Weather
             );
             bool isDay = current.IsDay == 1;
 
-            ApplyEnvironment(cloud, precipitation, isDay, current.WeatherCode);
+            ApplyEnvironment(
+                cloud,
+                precipitation,
+                isDay,
+                current.WeatherCode,
+                current.RelativeHumidityPercent,
+                current.TemperatureC
+            );
             ApplySun(cloud, isDay, current.Time);
             ApplyOverlay(
                 rain,
@@ -79,13 +86,48 @@ namespace TerreZero.World.Weather
             float cloud,
             float precipitation,
             bool isDay,
-            int weatherCode)
+            int weatherCode,
+            double humidityPercent,
+            double temperatureC)
         {
             Godot.Environment env = _worldEnvironment?.Environment;
             if (env == null)
                 return;
 
-            float stormFactor = Mathf.Clamp(Mathf.Max(cloud * 0.75f, precipitation), 0f, 1f);
+            float stormFactor = Mathf.Clamp(
+                Mathf.Max(cloud * 0.75f, precipitation),
+                0f,
+                1f
+            );
+
+            float humidity = Mathf.Clamp(
+                (float)((humidityPercent - 55.0) / 45.0),
+                0f,
+                1f
+            );
+
+            float explicitFog =
+                weatherCode is 45 or 48 ? 1f : 0f;
+
+            float fogFactor = Mathf.Clamp(
+                Mathf.Max(
+                    explicitFog,
+                    Mathf.Max(stormFactor * 0.75f, humidity * 0.55f)
+                ),
+                0f,
+                1f
+            );
+
+            float cold = Mathf.Clamp(
+                (float)((8.0 - temperatureC) / 18.0),
+                0f,
+                1f
+            );
+            float heat = Mathf.Clamp(
+                (float)((temperatureC - 24.0) / 16.0),
+                0f,
+                1f
+            );
 
             env.AmbientLightEnergy = isDay
                 ? Mathf.Lerp(1.0f, 0.48f, stormFactor)
@@ -93,17 +135,28 @@ namespace TerreZero.World.Weather
 
             env.FogEnabled = true;
             env.FogDensity = Mathf.Lerp(
-                isDay ? 0.006f : 0.012f,
-                0.035f,
-                stormFactor
+                isDay ? 0.0045f : 0.010f,
+                explicitFog > 0.5f ? 0.060f : 0.038f,
+                fogFactor
+            );
+
+            Color dayFog = new Color(
+                Mathf.Lerp(0.34f, 0.16f, stormFactor),
+                Mathf.Lerp(0.42f, 0.20f, stormFactor),
+                Mathf.Lerp(0.52f, 0.26f, stormFactor)
+            );
+
+            dayFog = dayFog.Lerp(
+                new Color(0.28f, 0.38f, 0.48f),
+                cold * 0.32f
+            );
+            dayFog = dayFog.Lerp(
+                new Color(0.52f, 0.38f, 0.26f),
+                heat * 0.22f
             );
 
             env.FogLightColor = isDay
-                ? new Color(
-                    Mathf.Lerp(0.34f, 0.16f, stormFactor),
-                    Mathf.Lerp(0.42f, 0.20f, stormFactor),
-                    Mathf.Lerp(0.52f, 0.26f, stormFactor)
-                )
+                ? dayFog
                 : new Color(0.05f, 0.07f, 0.12f);
 
             if (env.Sky?.SkyMaterial is ProceduralSkyMaterial sky)
