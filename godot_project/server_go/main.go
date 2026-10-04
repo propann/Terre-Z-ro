@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"regexp"
@@ -109,6 +110,23 @@ type WorldCell struct {
 	H3Index   string          `json:"h3_index"`
 	Buildings []WorldBuilding `json:"buildings"`
 	Roads     []WorldRoad     `json:"roads"`
+}
+
+type StartLocationRequest struct {
+	MachineLatitude  float64 `json:"machine_latitude"`
+	MachineLongitude float64 `json:"machine_longitude"`
+	StartLatitude    float64 `json:"start_latitude"`
+	StartLongitude   float64 `json:"start_longitude"`
+	RadiusKm         float64 `json:"radius_km"`
+}
+
+type StartLocationResponse struct {
+	Allowed    bool    `json:"allowed"`
+	DistanceKm float64 `json:"distance_km"`
+	RadiusKm   float64 `json:"radius_km"`
+	H3Index    string  `json:"h3_index,omitempty"`
+	Latitude   float64 `json:"latitude,omitempty"`
+	Longitude  float64 `json:"longitude,omitempty"`
 }
 
 type postgresStore struct {
@@ -358,6 +376,7 @@ func main() {
 	mux.HandleFunc("/api/v1/cells/", handleGetCellDeltas)
 	mux.HandleFunc("/api/v1/world/cells/", handleGetWorldCell)
 	mux.HandleFunc("/api/v1/spatial/cell", handleResolveSpatialCell)
+	mux.HandleFunc("/api/v1/spatial/start", handleValidateStartLocation)
 	mux.HandleFunc("/ws/spatial", handleSpatialWebSocket)
 
 	server := &http.Server{
@@ -438,6 +457,95 @@ func handleResolveSpatialCell(w http.ResponseWriter, r *http.Request) {
 		"latitude":   lat,
 		"longitude":  lon,
 	})
+}
+
+func handleValidateStartLocation(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "méthode non autorisée", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var request StartLocationRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		http.Error(w, "requête invalide", http.StatusBadRequest)
+		return
+	}
+
+	if request.MachineLatitude < -90 || request.MachineLatitude > 90 ||
+		request.StartLatitude < -90 || request.StartLatitude > 90 ||
+		request.MachineLongitude < -180 || request.MachineLongitude > 180 ||
+		request.StartLongitude < -180 || request.StartLongitude > 180 {
+		http.Error(w, "coordonnées invalides", http.StatusBadRequest)
+		return
+	}
+
+	if request.RadiusKm != 5 && request.RadiusKm != 10 {
+		http.Error(w, "rayon autorisé: 5 ou 10 km", http.StatusBadRequest)
+		return
+	}
+
+	distanceKm := haversineKm(
+		request.MachineLatitude,
+		request.MachineLongitude,
+		request.StartLatitude,
+		request.StartLongitude,
+	)
+
+	response := StartLocationResponse{
+		Allowed:    distanceKm <= request.RadiusKm,
+		DistanceKm: distanceKm,
+		RadiusKm:   request.RadiusKm,
+	}
+
+	if !response.Allowed {
+		writeJSON(w, http.StatusOK, response)
+		return
+	}
+
+	cell, err := h3.LatLngToCell(
+		h3.NewLatLng(request.StartLatitude, request.StartLongitude),
+		9,
+	)
+	if err != nil {
+		http.Error(w, "conversion H3 impossible", http.StatusInternalServerError)
+		return
+	}
+
+	response.H3Index = cell.String()
+	response.Latitude = request.StartLatitude
+	response.Longitude = request.StartLongitude
+	writeJSON(w, http.StatusOK, response)
+}
+
+func haversineKm(lat1, lon1, lat2, lon2 float64) float64 {
+	const earthRadiusKm = 6371.0088
+
+	lat1Rad := lat1 * 3.141592653589793 / 180
+	lat2Rad := lat2 * 3.141592653589793 / 180
+	dLat := (lat2 - lat1) * 3.141592653589793 / 180
+	dLon := (lon2 - lon1) * 3.141592653589793 / 180
+
+	a := sinSquared(dLat/2) +
+		cosine(lat1Rad)*cosine(lat2Rad)*sinSquared(dLon/2)
+
+	return 2 * earthRadiusKm * arcsineSqrt(a)
+}
+
+func sinSquared(value float64) float64 {
+	s := sine(value)
+	return s * s
+}
+
+func sine(value float64) float64 {
+	return math.Sin(value)
+}
+
+func cosine(value float64) float64 {
+	return math.Cos(value)
+}
+
+func arcsineSqrt(value float64) float64 {
+	return math.Asin(math.Sqrt(value))
 }
 
 func handleGetWorldCell(w http.ResponseWriter, r *http.Request) {
