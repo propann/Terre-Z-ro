@@ -1,7 +1,6 @@
 using System;
 using Godot;
 using TerreZero.Chimeres;
-using TerreZero.World.Voxel;
 
 namespace TerreZero.UI
 {
@@ -58,7 +57,6 @@ namespace TerreZero.UI
 
             _capture.Pressed += OnCapturePressed;
             _flee.Pressed += CloseBattle;
-
             Visible = false;
         }
 
@@ -73,16 +71,13 @@ namespace TerreZero.UI
             _busy = false;
             Visible = true;
             Input.MouseMode = Input.MouseModeEnum.Visible;
-
             _log.Text = $"Une Chimère sauvage apparaît : {_wild.Name}.";
             Refresh();
         }
 
         private async void OnMovePressed(int index)
         {
-            if (_busy || _wild == null || _active == null)
-                return;
-            if (index >= _active.Moves.Count)
+            if (_busy || _wild == null || _active == null || index >= _active.Moves.Count)
                 return;
 
             _busy = true;
@@ -101,7 +96,6 @@ namespace TerreZero.UI
             }
 
             await ToSignal(GetTree().CreateTimer(0.35), SceneTreeTimer.SignalName.Timeout);
-
             ExecuteEnemyTurn();
 
             if (_active.IsDefeated)
@@ -116,8 +110,7 @@ namespace TerreZero.UI
                 }
 
                 _active = next;
-                _log.Text += $"
-{_active.Name} prend le relais.";
+                _log.Text += $"\n{_active.Name} prend le relais.";
             }
 
             _busy = false;
@@ -130,11 +123,13 @@ namespace TerreZero.UI
             if (_wild.Moves.Count == 0 || _wild.IsDefeated)
                 return;
 
-            int moveIndex = Math.Abs((_wild.CurrentHp + _wild.Stability + _wild.Level) % _wild.Moves.Count);
+            int moveIndex = Math.Abs(
+                (_wild.CurrentHp + _wild.Stability + _wild.Level) % _wild.Moves.Count
+            );
+
             var move = _wild.Moves[moveIndex];
             BattleActionResult result = _engine.ExecuteMove(_wild, _active, move);
-            _log.Text += $"
-{result.Message}";
+            _log.Text += $"\n{result.Message}";
         }
 
         private void OnCapturePressed()
@@ -174,7 +169,6 @@ namespace TerreZero.UI
             int xp = 18 + _wild.Level * 9;
             bool levelUp = ChimereCombatEngine.GrantExperience(_active, xp);
             _active.Bond = Math.Min(100, _active.Bond + 2);
-
             ChimereSaveStore.Save();
 
             _log.Text =
@@ -212,8 +206,7 @@ namespace TerreZero.UI
                     var move = _active.Moves[i];
                     _moveButtons[i].Visible = true;
                     _moveButtons[i].Text =
-                        $"{move.Name.ToUpperInvariant()}
-{move.Description}";
+                        $"{move.Name.ToUpperInvariant()}\n{move.Description}";
                 }
                 else
                 {
@@ -224,21 +217,34 @@ namespace TerreZero.UI
             float preview = PreviewCaptureChance();
             _captureChance.Text =
                 $"CAPTURE {preview * 100f:F0}%  //  MODULES {ChimereGameState.CaptureModules}";
-            _capture.Disabled = _wild.IsDefeated || ChimereGameState.CaptureModules <= 0;
+            _capture.Disabled =
+                _wild.IsDefeated || ChimereGameState.CaptureModules <= 0;
         }
 
         private float PreviewCaptureChance()
         {
-            float hpFactor = 1f - _wild.CurrentHp / (float)Math.Max(1, _wild.MaxHp);
-            float stabilityFactor = 1f - _wild.Stability / (float)Math.Max(1, _wild.MaxStability);
-            float statusBonus = _wild.Status is ChimereStatus.Marked or ChimereStatus.Stunned ? 0.16f : 0f;
-            float roleBonus = _active.Role == ChimereCombatRole.Capturer ? 0.12f : 0f;
+            float hpFactor =
+                1f - _wild.CurrentHp / (float)Math.Max(1, _wild.MaxHp);
+            float stabilityFactor =
+                1f - _wild.Stability / (float)Math.Max(1, _wild.MaxStability);
+            float statusBonus =
+                _wild.Status is ChimereStatus.Marked or ChimereStatus.Stunned
+                    ? 0.16f
+                    : 0f;
+            float roleBonus =
+                _active.Role == ChimereCombatRole.Capturer ? 0.12f : 0f;
             float bondBonus = Math.Min(0.10f, _active.Bond / 1000f);
-            float levelPenalty = Math.Max(0f, _wild.Level - _active.Level) * 0.025f;
+            float levelPenalty =
+                Math.Max(0f, _wild.Level - _active.Level) * 0.025f;
 
             return Mathf.Clamp(
-                0.08f + hpFactor * 0.30f + stabilityFactor * 0.38f +
-                statusBonus + roleBonus + bondBonus - levelPenalty,
+                0.08f +
+                hpFactor * 0.30f +
+                stabilityFactor * 0.38f +
+                statusBonus +
+                roleBonus +
+                bondBonus -
+                levelPenalty,
                 0.05f,
                 0.95f
             );
@@ -248,6 +254,7 @@ namespace TerreZero.UI
         {
             foreach (var button in _moveButtons)
                 button.Disabled = !enabled;
+
             _capture.Disabled = !enabled;
             _flee.Disabled = !enabled;
         }
