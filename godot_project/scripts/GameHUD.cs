@@ -11,6 +11,7 @@ namespace TerreZero.UI
         private Label _material;
         private Label _hint;
         private Label _survival;
+        private Label _weather;
 
         public override void _Ready()
         {
@@ -19,6 +20,7 @@ namespace TerreZero.UI
             _material = GetNode<Label>("%Material");
             _hint = GetNode<Label>("%Hint");
             _survival = GetNodeOrNull<Label>("%Survival");
+            _weather = GetNodeOrNull<Label>("%Weather");
             SetSector("LOCAL / INITIALISATION");
             SetMaterial(VoxelMaterial.SteelBarricade);
         }
@@ -49,6 +51,12 @@ namespace TerreZero.UI
         {
             if (_mode != null)
                 _mode.Text = active ? "SCAN X-RAY // ACTIF" : "SURVIE // NORMAL";
+        }
+
+        public void SetWeather(string text)
+        {
+            if (_weather != null)
+                _weather.Text = $"MÉTÉO // {text}";
         }
 
         public void SetHint(string text)
