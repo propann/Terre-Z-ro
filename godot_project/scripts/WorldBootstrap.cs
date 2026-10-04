@@ -715,6 +715,13 @@ namespace TerreZero.World
                     _weatherVisuals.CurrentStormIntensity > 0.45f,
                     _weatherVisuals.CurrentStormIntensity
                 );
+
+                UrbanDecorDirector.SetWind(
+                    _urbanDecorContainer,
+                    _weatherVisuals.CurrentWindSpeedKmh,
+                    _weatherVisuals.CurrentWindDirectionDegrees
+                );
+
                 GD.Print(
                     $"[TERRE ZÉRO] météo réelle {weather.Current.TemperatureC:F1}°C " +
                     $"code={weather.Current.WeatherCode} nuages={weather.Current.CloudCoverPercent:F0}% " +
