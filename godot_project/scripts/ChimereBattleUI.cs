@@ -24,6 +24,8 @@ namespace TerreZero.UI
         private Button[] _switchButtons;
         private ChimereBattlePortrait _enemyPortrait;
         private ChimereBattlePortrait _playerPortrait;
+        private Control _root;
+        private ColorRect _backdrop;
 
         public bool EncounterResolved { get; private set; }
 
@@ -47,6 +49,8 @@ namespace TerreZero.UI
             _flee = GetNode<Button>("%Flee");
             _enemyPortrait = GetNode<ChimereBattlePortrait>("%EnemyPortrait");
             _playerPortrait = GetNode<ChimereBattlePortrait>("%PlayerPortrait");
+            _root = GetNode<Control>("Root");
+            _backdrop = GetNode<ColorRect>("Backdrop");
 
             _moveButtons = new[]
             {
@@ -94,6 +98,7 @@ namespace TerreZero.UI
             Input.MouseMode = Input.MouseModeEnum.Visible;
             _log.Text = $"Une Chimère sauvage apparaît : {_wild.Name}.";
             Refresh();
+            PlayEnterTransition();
         }
 
         private async void OnMovePressed(int index)
@@ -312,6 +317,27 @@ namespace TerreZero.UI
                 levelPenalty,
                 0.05f,
                 0.95f
+            );
+        }
+
+        private void PlayEnterTransition()
+        {
+            _root.Modulate = new Color(1, 1, 1, 0);
+            _root.Scale = new Vector2(1.04f, 1.04f);
+            _root.PivotOffset = _root.Size * 0.5f;
+            _backdrop.Color = new Color(0.95f, 0.72f, 0.30f, 0.92f);
+
+            var tween = CreateTween();
+            tween.SetParallel(true);
+            tween.SetEase(Tween.EaseType.Out);
+            tween.SetTrans(Tween.TransitionType.Cubic);
+            tween.TweenProperty(_root, "modulate:a", 1.0f, 0.22f);
+            tween.TweenProperty(_root, "scale", Vector2.One, 0.28f);
+            tween.TweenProperty(
+                _backdrop,
+                "color",
+                new Color(0.01f, 0.015f, 0.02f, 0.88f),
+                0.34f
             );
         }
 
