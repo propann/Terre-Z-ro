@@ -142,6 +142,12 @@ func newPostgresStore(ctx context.Context, url string) (*postgresStore, error) {
 		_ = db.Close()
 		return nil, err
 	}
+
+	if err := ensureOSMCacheSchema(ctx, db); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+
 	return &postgresStore{db: db}, nil
 }
 
