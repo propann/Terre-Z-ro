@@ -65,6 +65,73 @@ namespace TerreZero.World.Generation
         public double Longitude { get; set; }
     }
 
+
+    public sealed class WeatherCurrentPayload
+    {
+        [JsonPropertyName("time")]
+        public string Time { get; set; } = string.Empty;
+
+        [JsonPropertyName("temperature_c")]
+        public double TemperatureC { get; set; }
+
+        [JsonPropertyName("apparent_temperature_c")]
+        public double ApparentTemperatureC { get; set; }
+
+        [JsonPropertyName("relative_humidity_percent")]
+        public double RelativeHumidityPercent { get; set; }
+
+        [JsonPropertyName("precipitation_mm")]
+        public double PrecipitationMM { get; set; }
+
+        [JsonPropertyName("rain_mm")]
+        public double RainMM { get; set; }
+
+        [JsonPropertyName("showers_mm")]
+        public double ShowersMM { get; set; }
+
+        [JsonPropertyName("snowfall_cm")]
+        public double SnowfallCM { get; set; }
+
+        [JsonPropertyName("weather_code")]
+        public int WeatherCode { get; set; }
+
+        [JsonPropertyName("cloud_cover_percent")]
+        public double CloudCoverPercent { get; set; }
+
+        [JsonPropertyName("wind_speed_kmh")]
+        public double WindSpeedKmh { get; set; }
+
+        [JsonPropertyName("wind_direction_deg")]
+        public double WindDirectionDeg { get; set; }
+
+        [JsonPropertyName("wind_gusts_kmh")]
+        public double WindGustsKmh { get; set; }
+
+        [JsonPropertyName("is_day")]
+        public int IsDay { get; set; }
+    }
+
+    public sealed class WeatherPayload
+    {
+        [JsonPropertyName("latitude")]
+        public double Latitude { get; set; }
+
+        [JsonPropertyName("longitude")]
+        public double Longitude { get; set; }
+
+        [JsonPropertyName("timezone")]
+        public string Timezone { get; set; } = string.Empty;
+
+        [JsonPropertyName("source")]
+        public string Source { get; set; } = string.Empty;
+
+        [JsonPropertyName("fetched_at")]
+        public DateTime FetchedAt { get; set; }
+
+        [JsonPropertyName("current")]
+        public WeatherCurrentPayload Current { get; set; } = new();
+    }
+
     public sealed class WorldCellPayload
     {
         [JsonPropertyName("h3_index")]
@@ -275,6 +342,33 @@ namespace TerreZero.World.Generation
                 Latitude = latitude,
                 Longitude = longitude,
                 Resolution = 9
+            };
+        }
+
+        public async Task<WeatherPayload> GetWeatherAsync(
+            double latitude,
+            double longitude,
+            CancellationToken cancellationToken = default)
+        {
+            string lat = latitude.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            string lon = longitude.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+            using var response = await _http.GetAsync(
+                $"api/v1/weather?lat={Uri.EscapeDataString(lat)}&lon={Uri.EscapeDataString(lon)}",
+                cancellationToken
+            );
+            response.EnsureSuccessStatusCode();
+
+            await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+            var payload = await JsonSerializer.DeserializeAsync<WeatherPayload>(
+                stream,
+                cancellationToken: cancellationToken
+            );
+
+            return payload ?? new WeatherPayload
+            {
+                Latitude = latitude,
+                Longitude = longitude
             };
         }
 
