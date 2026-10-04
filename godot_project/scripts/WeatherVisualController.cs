@@ -15,6 +15,8 @@ namespace TerreZero.World.Weather
         private WeatherPayload _lastWeather;
 
         public float CurrentSurfaceWetness { get; private set; }
+        public bool CurrentIsDay { get; private set; } = true;
+        public float CurrentStormIntensity { get; private set; }
 
         public void Initialize(
             WorldEnvironment worldEnvironment,
@@ -59,6 +61,17 @@ namespace TerreZero.World.Weather
                 1f
             );
             bool isDay = current.IsDay == 1;
+            CurrentIsDay = isDay;
+            CurrentStormIntensity =
+                current.WeatherCode >= 95 &&
+                current.WeatherCode <= 99
+                    ? 1f
+                    : Mathf.Clamp(
+                        (float)(current.CloudCoverPercent / 100.0) *
+                        (float)(current.PrecipitationMM / 2.0),
+                        0f,
+                        1f
+                    );
 
             ApplyEnvironment(
                 cloud,
