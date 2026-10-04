@@ -21,6 +21,7 @@ namespace TerreZero.UI
             GetNode<Button>("%Train1").Pressed += () => Train(1);
             GetNode<Button>("%Train2").Pressed += () => Train(2);
             GetNode<Button>("%Train3").Pressed += () => Train(3);
+            GetNode<Button>("%Evolve").Pressed += Evolve;
             GetNode<Button>("%Close").Pressed += Close;
             Visible = false;
         }
@@ -76,7 +77,7 @@ namespace TerreZero.UI
                 $"{_selected.Name.ToUpperInvariant()} // {_selected.Affinity}\n" +
                 $"Niveau {_selected.Level}   PV {_selected.MaxHp}   " +
                 $"ATK {_selected.Attack}   DEF {_selected.Defense}\n" +
-                $"Lien {_selected.Bond}/100   Dressage {_selected.Training}\n\n" +
+                $"Lien {_selected.Bond}/100   Dressage {_selected.Training}   Évolution {_selected.EvolutionStage}/2\n\n" +
                 $"PASSIF : {_selected.PassiveName}\n" +
                 $"{_selected.PassiveDescription}";
         }
@@ -94,6 +95,23 @@ namespace TerreZero.UI
 
             ChimereSaveStore.Save();
             RebuildList();
+        }
+
+        private void Evolve()
+        {
+            if (_selected == null)
+                return;
+
+            string before = _selected.Name;
+            if (!ChimereCombatEngine.TryEvolve(_selected))
+            {
+                _details.Text += "\n\nÉVOLUTION BLOQUÉE : niveau, lien ou dressage insuffisant.";
+                return;
+            }
+
+            ChimereSaveStore.Save();
+            RebuildList();
+            _details.Text += $"\n\nÉVOLUTION RÉUSSIE : {before} → {_selected.Name}.";
         }
 
         private void Close()
