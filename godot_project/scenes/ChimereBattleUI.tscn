@@ -1,0 +1,225 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scripts/ChimereBattleUI.cs" id="1"]
+
+[sub_resource type="StyleBoxFlat" id="panel"]
+bg_color = Color(0.025, 0.035, 0.045, 0.97)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.82, 0.48, 0.12, 0.9)
+corner_radius_top_left = 7
+corner_radius_top_right = 7
+corner_radius_bottom_left = 7
+corner_radius_bottom_right = 7
+
+[sub_resource type="StyleBoxFlat" id="button"]
+bg_color = Color(0.08, 0.11, 0.13, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.35, 0.42, 0.43, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_left = 4
+corner_radius_bottom_right = 4
+
+[sub_resource type="StyleBoxFlat" id="button_hover"]
+bg_color = Color(0.18, 0.15, 0.10, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.91, 0.64, 0.23, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_left = 4
+corner_radius_bottom_right = 4
+
+[sub_resource type="Theme" id="theme"]
+default_font_size = 15
+Button/styles/normal = SubResource("button")
+Button/styles/hover = SubResource("button_hover")
+Button/styles/pressed = SubResource("button_hover")
+Button/colors/font_color = Color(0.86, 0.89, 0.86, 1)
+
+[node name="ChimereBattleUI" type="CanvasLayer"]
+layer = 80
+script = ExtResource("1")
+
+[node name="Backdrop" type="ColorRect" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.01, 0.015, 0.02, 0.88)
+mouse_filter = 0
+
+[node name="Root" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = SubResource("theme")
+
+[node name="Header" type="Label" parent="Root"]
+offset_left = 42.0
+offset_top = 28.0
+offset_right = 600.0
+offset_bottom = 62.0
+theme_override_colors/font_color = Color(0.91, 0.64, 0.23, 1)
+theme_override_font_sizes/font_size = 19
+text = "TERRE ZÉRO // SYNCHRONISATION CHIMÈRE"
+
+[node name="EnemyPanel" type="PanelContainer" parent="Root"]
+offset_left = 650.0
+offset_top = 80.0
+offset_right = 1225.0
+offset_bottom = 286.0
+theme_override_styles/panel = SubResource("panel")
+
+[node name="EnemyVBox" type="VBoxContainer" parent="Root/EnemyPanel"]
+layout_mode = 2
+theme_override_constants/separation = 7
+
+[node name="EnemyName" type="Label" parent="Root/EnemyPanel/EnemyVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "CHIMÈRE SAUVAGE"
+
+[node name="EnemyStats" type="Label" parent="Root/EnemyPanel/EnemyVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.58, 0.67, 0.68, 1)
+text = "NIV 00"
+
+[node name="EnemyHPLabel" type="Label" parent="Root/EnemyPanel/EnemyVBox"]
+layout_mode = 2
+text = "INTÉGRITÉ"
+
+[node name="EnemyHP" type="ProgressBar" parent="Root/EnemyPanel/EnemyVBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 18)
+layout_mode = 2
+show_percentage = false
+
+[node name="EnemyStabilityLabel" type="Label" parent="Root/EnemyPanel/EnemyVBox"]
+layout_mode = 2
+text = "STABILITÉ"
+
+[node name="EnemyStability" type="ProgressBar" parent="Root/EnemyPanel/EnemyVBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 18)
+layout_mode = 2
+show_percentage = false
+
+[node name="PlayerPanel" type="PanelContainer" parent="Root"]
+offset_left = 54.0
+offset_top = 250.0
+offset_right = 590.0
+offset_bottom = 430.0
+theme_override_styles/panel = SubResource("panel")
+
+[node name="PlayerVBox" type="VBoxContainer" parent="Root/PlayerPanel"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="PlayerName" type="Label" parent="Root/PlayerPanel/PlayerVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "COMPAGNON"
+
+[node name="PlayerStats" type="Label" parent="Root/PlayerPanel/PlayerVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.58, 0.67, 0.68, 1)
+text = "NIV 00"
+
+[node name="PlayerHPLabel" type="Label" parent="Root/PlayerPanel/PlayerVBox"]
+layout_mode = 2
+text = "INTÉGRITÉ"
+
+[node name="PlayerHP" type="ProgressBar" parent="Root/PlayerPanel/PlayerVBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+show_percentage = false
+
+[node name="BattleLogPanel" type="PanelContainer" parent="Root"]
+offset_left = 54.0
+offset_top = 462.0
+offset_right = 1225.0
+offset_bottom = 560.0
+theme_override_styles/panel = SubResource("panel")
+
+[node name="BattleLog" type="Label" parent="Root/BattleLogPanel"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "..."
+autowrap_mode = 2
+vertical_alignment = 1
+
+[node name="Actions" type="GridContainer" parent="Root"]
+offset_left = 54.0
+offset_top = 584.0
+offset_right = 925.0
+offset_bottom = 700.0
+columns = 2
+
+[node name="Move1" type="Button" parent="Root/Actions"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(420, 52)
+layout_mode = 2
+text = "ATTAQUE 1"
+
+[node name="Move2" type="Button" parent="Root/Actions"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(420, 52)
+layout_mode = 2
+text = "ATTAQUE 2"
+
+[node name="Move3" type="Button" parent="Root/Actions"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(420, 52)
+layout_mode = 2
+text = "ATTAQUE 3"
+
+[node name="Move4" type="Button" parent="Root/Actions"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(420, 52)
+layout_mode = 2
+text = "ATTAQUE 4"
+
+[node name="CaptureChance" type="Label" parent="Root"]
+unique_name_in_owner = true
+offset_left = 956.0
+offset_top = 590.0
+offset_right = 1218.0
+offset_bottom = 616.0
+theme_override_colors/font_color = Color(0.91, 0.64, 0.23, 1)
+text = "CAPTURE 0%"
+
+[node name="Capture" type="Button" parent="Root"]
+unique_name_in_owner = true
+offset_left = 956.0
+offset_top = 626.0
+offset_right = 1218.0
+offset_bottom = 670.0
+text = "CAPTURER"
+
+[node name="Flee" type="Button" parent="Root"]
+unique_name_in_owner = true
+offset_left = 956.0
+offset_top = 676.0
+offset_right = 1218.0
+offset_bottom = 716.0
+text = "REPLI"
