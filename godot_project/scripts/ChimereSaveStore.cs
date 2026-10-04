@@ -20,6 +20,7 @@ namespace TerreZero.Chimeres
         public int Bond { get; set; }
         public int Training { get; set; }
         public int EvolutionStage { get; set; }
+        public int Rarity { get; set; }
     }
 
     public sealed class ChimereSaveData
@@ -109,6 +110,9 @@ namespace TerreZero.Chimeres
                 chimere.Bond = Math.Clamp(entry.Bond, 0, 100);
                 chimere.Training = Math.Max(0, entry.Training);
                 chimere.EvolutionStage = Math.Clamp(entry.EvolutionStage, 0, 2);
+                chimere.Rarity = Enum.IsDefined(typeof(ChimereRarity), entry.Rarity)
+                    ? (ChimereRarity)entry.Rarity
+                    : ChimereRarity.Common;
                 result.Add(chimere);
             }
             return result;
@@ -128,7 +132,8 @@ namespace TerreZero.Chimeres
                 MaxStability = chimere.MaxStability,
                 Bond = chimere.Bond,
                 Training = chimere.Training,
-                EvolutionStage = chimere.EvolutionStage
+                EvolutionStage = chimere.EvolutionStage,
+                Rarity = (int)chimere.Rarity
             };
     }
 }
