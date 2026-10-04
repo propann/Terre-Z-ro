@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -185,6 +186,82 @@ func TestRejectUnsupportedStartRadius(t *testing.T) {
 	recorder := httptest.NewRecorder()
 
 	handleValidateStartLocation(recorder, request)
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400, got %d", recorder.Code)
+	}
+}
+
+
+func TestWeatherEndpoint(t *testing.T) {
+	provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("current") == "" {
+			t.Fatal("expected current weather variables")
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+			"latitude":45.75,
+			"longitude":4.85,
+			"timezone":"Europe/Paris",
+			"current":{
+				"time":"2026-10-04T12:00",
+				"temperature_2m":17.5,
+				"apparent_temperature":17.0,
+				"relative_humidity_2m":72,
+				"precipitation":0.6,
+				"rain":0.6,
+				"showers":0,
+				"snowfall":0,
+				"weather_code":61,
+				"cloud_cover":88,
+				"wind_speed_10m":14,
+				"wind_direction_10m":220,
+				"wind_gusts_10m":28,
+				"is_day":1
+			}
+		}`))
+	}))
+	defer provider.Close()
+
+	previousURL := os.Getenv("WEATHER_API_BASE_URL")
+	_ = os.Setenv("WEATHER_API_BASE_URL", provider.URL)
+	defer func() { _ = os.Setenv("WEATHER_API_BASE_URL", previousURL) }()
+
+	weatherCacheMu.Lock()
+	weatherCache = map[string]weatherCacheEntry{}
+	weatherCacheMu.Unlock()
+
+	request := httptest.NewRequest(
+		http.MethodGet,
+		"/api/v1/weather?lat=45.75&lon=4.85",
+		nil,
+	)
+	recorder := httptest.NewRecorder()
+
+	handleWeather(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", recorder.Code, recorder.Body.String())
+	}
+
+	body := recorder.Body.String()
+	if !strings.Contains(body, "\"temperature_c\":17.5") {
+		t.Fatalf("expected current temperature in response: %s", body)
+	}
+	if !strings.Contains(body, "\"weather_code\":61") {
+		t.Fatalf("expected weather code in response: %s", body)
+	}
+}
+
+func TestWeatherRejectsInvalidCoordinates(t *testing.T) {
+	request := httptest.NewRequest(
+		http.MethodGet,
+		"/api/v1/weather?lat=99&lon=4.85",
+		nil,
+	)
+	recorder := httptest.NewRecorder()
+
+	handleWeather(recorder, request)
 
 	if recorder.Code != http.StatusBadRequest {
 		t.Fatalf("expected status 400, got %d", recorder.Code)
