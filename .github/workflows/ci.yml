@@ -26,6 +26,8 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
+      - name: Validate Godot resources
+        run: python3 tools/validate_godot_resources.py
       - name: Restore
         run: dotnet restore godot_project/TerreZero.csproj
       - name: Build
