@@ -108,6 +108,13 @@ namespace TerreZero.Chimeres
             float bondBonus = Math.Min(0.10f, active.Bond / 1000f);
             float levelPenalty = Math.Max(0f, wild.Level - active.Level) * 0.025f;
 
+            float rarityPenalty = wild.Rarity switch
+            {
+                ChimereRarity.Rare => 0.08f,
+                ChimereRarity.Alpha => 0.18f,
+                _ => 0f
+            };
+
             float chance =
                 0.08f +
                 hpFactor * 0.30f +
@@ -115,7 +122,8 @@ namespace TerreZero.Chimeres
                 statusBonus +
                 roleBonus +
                 bondBonus -
-                levelPenalty;
+                levelPenalty -
+                rarityPenalty;
 
             chance = Mathf.Clamp(chance * deviceQuality, 0.05f, 0.95f);
 
