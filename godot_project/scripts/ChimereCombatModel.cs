@@ -17,6 +17,13 @@ namespace TerreZero.Chimeres
         Radiant
     }
 
+    public enum ChimereRarity
+    {
+        Common,
+        Rare,
+        Alpha
+    }
+
     public enum ChimereCombatRole
     {
         Assault,
@@ -64,6 +71,7 @@ namespace TerreZero.Chimeres
         public string Name { get; set; } = string.Empty;
         public ChimereAffinity Affinity { get; set; }
         public ChimereCombatRole Role { get; set; }
+        public ChimereRarity Rarity { get; set; } = ChimereRarity.Common;
         public int Level { get; set; } = 1;
         public int Experience { get; set; }
         public int MaxHp { get; set; } = 80;
@@ -93,6 +101,7 @@ namespace TerreZero.Chimeres
                 Name = Name,
                 Affinity = Affinity,
                 Role = Role,
+                Rarity = Rarity,
                 Level = Level,
                 Experience = Experience,
                 MaxHp = MaxHp,
