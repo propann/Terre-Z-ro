@@ -10,6 +10,7 @@ using TerreZero.UI;
 using TerreZero.World.Generation;
 using TerreZero.World.Geo;
 using TerreZero.World.Voxel;
+using TerreZero.World.Weather;
 
 namespace TerreZero.World
 {
@@ -55,6 +56,8 @@ namespace TerreZero.World
         private bool _startValidated;
         private bool _loadingStart;
         private bool _overlayOpen;
+        private WeatherVisualController _weatherVisuals;
+        private double _weatherRefreshTimer;
 
         public override async void _Ready()
         {
@@ -69,12 +72,29 @@ namespace TerreZero.World
             _playerController = _player as PlayerController;
             _startUI = GetNodeOrNull<StartLocationUI>("StartLocationUI");
             _hud = GetNodeOrNull<GameHUD>("GameHUD");
+
+            _weatherVisuals = new WeatherVisualController
+            {
+                Name = "WeatherVisualController"
+            };
+            AddChild(_weatherVisuals);
+            _weatherVisuals.Initialize(
+                GetNodeOrNull<WorldEnvironment>("WorldEnvironment"),
+                GetNodeOrNull<DirectionalLight3D>("DirectionalLight3D"),
+                _hud
+            );
             _battleUI = GetNodeOrNull<ChimereBattleUI>("ChimereBattleUI");
             _trainingUI = GetNodeOrNull<ChimereTrainingUI>("ChimereTrainingUI");
             _fieldTerminal = new FieldTerminalUI { Name = "FieldTerminalUI" };
             AddChild(_fieldTerminal);
             _fieldTerminal.Closed += OnFieldTerminalClosed;
             _activeH3 = DemoH3Index;
+
+            if (!UseRemoteWorldData)
+            {
+                AnchorLatitude = MachineLatitude;
+                AnchorLongitude = MachineLongitude;
+            }
 
             GlobalSaveStore.LoadAll();
             BunkerSaveStore.Load();
@@ -107,6 +127,7 @@ namespace TerreZero.World
                 _startUI.Hide();
 
             await LoadActiveCellAsync(allowDemoFallback: true);
+            await RefreshWeatherAsync();
             EnterGameplay();
         }
 
@@ -198,6 +219,13 @@ namespace TerreZero.World
                 _streamTimer = 0;
                 _world.UpdateVisibility(_player.GlobalPosition, StreamRadiusChunks);
             }
+
+            _weatherRefreshTimer += delta;
+            if (_weatherRefreshTimer >= 600.0)
+            {
+                _weatherRefreshTimer = 0;
+                _ = RefreshWeatherAsync();
+            }
         }
 
         public override void _ExitTree()
@@ -283,6 +311,7 @@ namespace TerreZero.World
 
                 _world?.UnloadAllChunks();
                 await LoadActiveCellAsync(allowDemoFallback: true);
+                await RefreshWeatherAsync();
 
                 _hud?.SetSector(_activeH3);
                 _startUI.EnterGame();
@@ -574,6 +603,35 @@ namespace TerreZero.World
             };
 
             _hazardContainer.AddChild(zone);
+        }
+
+        private async Task RefreshWeatherAsync()
+        {
+            if (_weatherVisuals == null)
+                return;
+
+            try
+            {
+                using var client = new WorldDataClient(WorldApiBaseUrl);
+                WeatherPayload weather = await client.GetWeatherAsync(
+                    AnchorLatitude,
+                    AnchorLongitude
+                );
+
+                _weatherVisuals.Apply(weather);
+                GD.Print(
+                    $"[TERRE ZÉRO] météo réelle {weather.Current.TemperatureC:F1}°C " +
+                    $"code={weather.Current.WeatherCode} nuages={weather.Current.CloudCoverPercent:F0}% " +
+                    $"vent={weather.Current.WindSpeedKmh:F0} km/h"
+                );
+            }
+            catch (Exception ex)
+            {
+                _hud?.SetWeather("INDISPONIBLE");
+                GD.PushWarning(
+                    $"[TERRE ZÉRO] météo réelle indisponible : {ex.Message}"
+                );
+            }
         }
 
         private async Task<bool> GenerateRemoteWorldAsync()
