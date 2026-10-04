@@ -14,6 +14,8 @@ namespace TerreZero.World.Weather
         private WeatherOverlay _overlay;
         private WeatherPayload _lastWeather;
 
+        public float CurrentSurfaceWetness { get; private set; }
+
         public void Initialize(
             WorldEnvironment worldEnvironment,
             DirectionalLight3D sun,
@@ -51,6 +53,11 @@ namespace TerreZero.World.Weather
             float precipitation = Mathf.Clamp((float)(current.PrecipitationMM / 2.0), 0f, 1f);
             float rain = Mathf.Clamp((float)((current.RainMM + current.ShowersMM) / 2.0), 0f, 1f);
             float snow = Mathf.Clamp((float)(current.SnowfallCM / 1.5), 0f, 1f);
+            CurrentSurfaceWetness = Mathf.Clamp(
+                Mathf.Max(rain, precipitation * 0.85f),
+                0f,
+                1f
+            );
             bool isDay = current.IsDay == 1;
 
             ApplyEnvironment(cloud, precipitation, isDay, current.WeatherCode);
