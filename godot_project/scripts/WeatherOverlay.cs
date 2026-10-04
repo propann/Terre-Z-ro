@@ -7,14 +7,23 @@ namespace TerreZero.World.Weather
         private float _rainIntensity;
         private float _snowIntensity;
         private float _windSlant;
+        private float _stormIntensity;
         private float _phase;
 
-        public void Configure(float rain, float snow, float windSlant)
+        public void Configure(
+            float rain,
+            float snow,
+            float windSlant,
+            float stormIntensity = 0f)
         {
             _rainIntensity = Mathf.Clamp(rain, 0f, 1f);
             _snowIntensity = Mathf.Clamp(snow, 0f, 1f);
             _windSlant = Mathf.Clamp(windSlant, -1f, 1f);
-            Visible = _rainIntensity > 0.01f || _snowIntensity > 0.01f;
+            _stormIntensity = Mathf.Clamp(stormIntensity, 0f, 1f);
+            Visible =
+                _rainIntensity > 0.01f ||
+                _snowIntensity > 0.01f ||
+                _stormIntensity > 0.01f;
             QueueRedraw();
         }
 
@@ -30,6 +39,23 @@ namespace TerreZero.World.Weather
         public override void _Draw()
         {
             Vector2 size = Size;
+
+            if (_stormIntensity > 0.01f)
+            {
+                float wave = Mathf.Max(
+                    0f,
+                    Mathf.Sin(_phase * 0.72f) - 0.93f
+                );
+                float flash = Mathf.Pow(wave / 0.07f, 4f) * _stormIntensity;
+
+                if (flash > 0.01f)
+                {
+                    DrawRect(
+                        new Rect2(Vector2.Zero, size),
+                        new Color(0.84f, 0.91f, 1f, Mathf.Clamp(flash * 0.22f, 0f, 0.22f))
+                    );
+                }
+            }
 
             if (_rainIntensity > 0.01f)
             {
