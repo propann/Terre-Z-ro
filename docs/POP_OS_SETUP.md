@@ -103,3 +103,62 @@ dotnet build godot_project/TerreZero.csproj
 ~~~
 
 Then reopen `godot_project/project.godot`.
+
+## Fast local world stack with Docker
+
+From the repository root:
+
+~~~bash
+docker compose up -d --build
+~~~
+
+This starts only:
+
+- PostgreSQL 16 + PostGIS;
+- Terre Zéro Go backend.
+
+No Web prototype is started.
+
+Backend:
+
+~~~text
+http://127.0.0.1:8080
+~~~
+
+Check it:
+
+~~~bash
+curl http://127.0.0.1:8080/api/v1/health
+~~~
+
+The first PostGIS volume initialization automatically executes:
+
+~~~text
+godot_project/server_go/schema.sql
+~~~
+
+If the database volume already exists and the schema changed, re-apply it with:
+
+~~~bash
+docker compose exec postgis \
+  psql -U terre_zero -d terre_zero -f /schema.sql
+~~~
+
+To reset the development database completely:
+
+~~~bash
+docker compose down -v
+docker compose up -d --build
+~~~
+
+Logs:
+
+~~~bash
+docker compose logs -f backend
+~~~
+
+Stop:
+
+~~~bash
+docker compose down
+~~~
