@@ -251,7 +251,7 @@ namespace TerreZero.UI
             int xp = 18 + _wild.Level * 9 + rarityBonus;
             bool levelUp = ChimereCombatEngine.GrantExperience(_active, xp);
             _active.Bond = Math.Min(100, _active.Bond + 2);
-            GameplayProgressionService.RegisterBattleVictory(
+            LootBundle loot = GameplayProgressionService.RegisterBattleVictory(
                 _wild,
                 _encounterContext,
                 _battleSeed
@@ -259,9 +259,22 @@ namespace TerreZero.UI
             GlobalSaveStore.SaveAll();
             EncounterResolved = true;
 
+            string lootText = loot.Entries.Count == 0
+                ? " Aucun loot récupéré."
+                : " Loot : " + string.Join(
+                    ", ",
+                    loot.Entries.ConvertAll(entry =>
+                    {
+                        ItemDefinition item = ItemCatalog.Get(entry.ItemId);
+                        string name = item?.Name ?? entry.ItemId;
+                        return $"{name} x{entry.Quantity}";
+                    })
+                ) + ".";
+
             _log.Text =
                 $"{_wild.Name} est neutralisée. +{xp} XP." +
-                (levelUp ? $" {_active.Name} monte niveau {_active.Level} !" : "");
+                (levelUp ? $" {_active.Name} monte niveau {_active.Level} !" : "") +
+                lootText;
 
             SetButtonsEnabled(false);
             _capture.Disabled = true;
