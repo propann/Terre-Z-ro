@@ -118,6 +118,7 @@ namespace TerreZero.World
                 _startUI.Visible = true;
                 _startUI.ConfigureMachinePoint(MachineLatitude, MachineLongitude);
                 _startUI.StartConfirmed += OnStartConfirmed;
+                _startUI.PermissionChanged += OnLocationPermissionChanged;
                 _hud?.Hide();
                 _playerController?.SetGameplayEnabled(false);
                 return;
@@ -235,7 +236,10 @@ namespace TerreZero.World
                 _playerController.ScannerChanged -= OnScannerChanged;
 
             if (_startUI != null)
+            {
                 _startUI.StartConfirmed -= OnStartConfirmed;
+                _startUI.PermissionChanged -= OnLocationPermissionChanged;
+            }
 
             if (_battleUI != null)
             {
