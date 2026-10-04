@@ -107,6 +107,43 @@ namespace TerreZero.World.Generation
             }
         }
 
+        public static void SetWind(
+            Node3D parent,
+            float speedKmh,
+            float directionDegrees)
+        {
+            if (parent == null)
+                return;
+
+            foreach (Node child in parent.GetChildren())
+                ApplyWindRecursive(
+                    child,
+                    speedKmh,
+                    directionDegrees
+                );
+        }
+
+        private static void ApplyWindRecursive(
+            Node node,
+            float speedKmh,
+            float directionDegrees)
+        {
+            if (node is UrbanWindActor windActor)
+            {
+                windActor.ConfigureWind(
+                    speedKmh,
+                    directionDegrees
+                );
+            }
+
+            foreach (Node child in node.GetChildren())
+                ApplyWindRecursive(
+                    child,
+                    speedKmh,
+                    directionDegrees
+                );
+        }
+
         public static void SetStreetLights(
             Node3D parent,
             bool enabled,
@@ -313,7 +350,7 @@ namespace TerreZero.World.Generation
             Vector3 position,
             DeterministicRng rng)
         {
-            var root = new Node3D
+            var root = new UrbanWindActor
             {
                 Name = "UrbanPlant",
                 Position = position,
