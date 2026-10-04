@@ -124,7 +124,10 @@ namespace TerreZero.World
 
             DeltaSyncManager.RemoteDeltaReceived += OnRemoteDeltaReceived;
             if (_playerController != null)
+            {
                 _playerController.ScannerChanged += OnScannerChanged;
+                _playerController.MaterialChanged += OnMaterialChanged;
+            }
 
             if (UseRemoteWorldData && _startUI != null)
             {
@@ -246,7 +249,10 @@ namespace TerreZero.World
         {
             DeltaSyncManager.RemoteDeltaReceived -= OnRemoteDeltaReceived;
             if (_playerController != null)
+            {
                 _playerController.ScannerChanged -= OnScannerChanged;
+                _playerController.MaterialChanged -= OnMaterialChanged;
+            }
 
             if (_startUI != null)
             {
@@ -504,6 +510,9 @@ namespace TerreZero.World
             _hud?.Show();
             _hud?.SetSector(_activeH3);
             _hud?.SetAnchor(AnchorLatitude, AnchorLongitude);
+
+            if (_playerController != null)
+                _hud?.SetMaterial(_playerController.SelectedMaterial);
             _hud?.SetHint("I : TERMINAL • C : CHIMÈRE • T : DRESSAGE • F : X-RAY • H : SOIN • SHIFT : SPRINT");
             _playerController?.SetGameplayEnabled(true);
         }
@@ -897,6 +906,11 @@ namespace TerreZero.World
         {
             _hud?.SetScanner(active);
             _world?.SetXrayActive(active);
+        }
+
+        private void OnMaterialChanged(VoxelMaterial material)
+        {
+            _hud?.SetMaterial(material);
         }
 
         private void OnRemoteDeltaReceived(VoxelDeltaEvent delta)
