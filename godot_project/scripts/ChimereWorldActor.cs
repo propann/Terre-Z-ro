@@ -75,7 +75,7 @@ namespace TerreZero.Chimeres
             if (_consumed || Wild == null)
                 return;
 
-            if (body is TerreZero.World.PlayerController)
+            if (body is TerreZero.World.Voxel.PlayerController)
             {
                 Monitoring = false;
                 EncounterRequested?.Invoke(this, Wild);
