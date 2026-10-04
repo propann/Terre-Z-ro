@@ -27,6 +27,23 @@ namespace TerreZero.World.Generation
             );
             var rng = new DeterministicRng(seed);
 
+            string normalizedContext =
+                (context ?? string.Empty).ToLowerInvariant();
+
+            bool industrial =
+                normalizedContext.Contains("industrial") ||
+                normalizedContext.Contains("railway");
+
+            bool natural =
+                normalizedContext.Contains("park") ||
+                normalizedContext.Contains("wood") ||
+                normalizedContext.Contains("natural");
+
+            int lampTarget = industrial ? 3 : natural ? 2 : 7;
+            int barrierTarget = industrial ? 10 : natural ? 2 : 5;
+            int debrisTarget = industrial ? 16 : natural ? 6 : 11;
+            int plantTarget = natural ? 22 : industrial ? 5 : 12;
+
             int lamps = 0;
             int barriers = 0;
             int debris = 0;
@@ -58,7 +75,7 @@ namespace TerreZero.World.Generation
 
                 position.Y = VoxelChunk.VoxelScale;
 
-                if (ground == VoxelMaterial.Sidewalk && lamps < 7)
+                if (ground == VoxelMaterial.Sidewalk && lamps < lampTarget)
                 {
                     AddLampPost(
                         parent,
@@ -69,7 +86,7 @@ namespace TerreZero.World.Generation
                     continue;
                 }
 
-                if (ground == VoxelMaterial.Sidewalk && barriers < 6)
+                if (ground == VoxelMaterial.Sidewalk && barriers < barrierTarget)
                 {
                     AddBarrier(
                         parent,
@@ -82,7 +99,7 @@ namespace TerreZero.World.Generation
 
                 if ((ground == VoxelMaterial.Asphalt ||
                      ground == VoxelMaterial.Sidewalk) &&
-                    debris < 12)
+                    debris < debrisTarget)
                 {
                     AddDebris(
                         parent,
@@ -95,7 +112,7 @@ namespace TerreZero.World.Generation
 
                 if ((ground == VoxelMaterial.GrassOrganic ||
                      ground == VoxelMaterial.Sidewalk) &&
-                    plants < 14)
+                    plants < plantTarget)
                 {
                     AddPlant(
                         parent,
