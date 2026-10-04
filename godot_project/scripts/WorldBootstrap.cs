@@ -165,6 +165,14 @@ namespace TerreZero.World
                     BunkerService.TryExpandStorage(out string storageMessage);
                     _hud?.SetHint($"BUNKER : {storageMessage}");
                     GetViewport().SetInputAsHandled();
+                    return;
+                }
+
+                if (key.Keycode == Key.F5)
+                {
+                    BunkerService.TryDecontaminate(out string deconMessage);
+                    _hud?.SetHint($"INFIRMERIE : {deconMessage}");
+                    GetViewport().SetInputAsHandled();
                 }
             }
         }
