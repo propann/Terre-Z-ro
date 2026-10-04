@@ -26,6 +26,7 @@ namespace TerreZero.UI
         private ChimereBattlePortrait _playerPortrait;
         private Control _root;
         private ColorRect _backdrop;
+        private ChimereBattleFx _battleFx;
 
         public bool EncounterResolved { get; private set; }
 
@@ -51,6 +52,7 @@ namespace TerreZero.UI
             _playerPortrait = GetNode<ChimereBattlePortrait>("%PlayerPortrait");
             _root = GetNode<Control>("Root");
             _backdrop = GetNode<ColorRect>("Backdrop");
+            _battleFx = GetNode<ChimereBattleFx>("%BattleFx");
 
             _moveButtons = new[]
             {
@@ -113,6 +115,7 @@ namespace TerreZero.UI
                 _engine.ExecuteMove(_active, _wild, _active.Moves[index]);
 
             _log.Text = playerResult.Message;
+            _battleFx.Play(_active.Affinity, _active.Moves[index].Kind, enemyTarget: true);
             _enemyPortrait.HitFlash();
             Refresh();
 
@@ -156,6 +159,7 @@ namespace TerreZero.UI
 
             var move = _wild.Moves[moveIndex];
             BattleActionResult result = _engine.ExecuteMove(_wild, _active, move);
+            _battleFx.Play(_wild.Affinity, move.Kind, enemyTarget: false);
             _playerPortrait.HitFlash();
             _log.Text += $"\n{result.Message}";
         }
