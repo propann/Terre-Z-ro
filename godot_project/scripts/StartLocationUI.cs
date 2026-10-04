@@ -7,6 +7,7 @@ namespace TerreZero.UI
     public partial class StartLocationUI : Control
     {
         public event Action<double, double, int> StartConfirmed;
+        public event Action<bool> PermissionChanged;
 
         [Export] public Color AccentColor { get; set; } = new Color("e8a23a");
         [Export] public Color DangerColor { get; set; } = new Color("e35d4f");
@@ -62,6 +63,24 @@ namespace TerreZero.UI
 
         public bool PermissionGranted => _permission?.ButtonPressed ?? false;
 
+        public void ShowMachineLocationResult(
+            bool resolved,
+            double latitude,
+            double longitude,
+            double accuracyMeters,
+            string source)
+        {
+            ConfigureMachinePoint(latitude, longitude);
+
+            _status.Text = resolved
+                ? $"POINT MACHINE // {source} • précision ~{accuracyMeters:F0} m — choisissez votre zone."
+                : "GÉOLOCALISATION SYSTÈME INDISPONIBLE — coordonnées configurées utilisées.";
+
+            _map.MouseFilter = PermissionGranted
+                ? MouseFilterEnum.Stop
+                : MouseFilterEnum.Ignore;
+        }
+
         public override void _Draw()
         {
             if (_map == null)
@@ -70,6 +89,8 @@ namespace TerreZero.UI
 
         private void OnPermissionToggled(bool enabled)
         {
+            PermissionChanged?.Invoke(enabled);
+
             _status.Text = enabled
                 ? "POINT MACHINE AUTORISÉ — choisissez votre zone d'émergence."
                 : "LOCALISATION NON AUTORISÉE — le mode monde réel reste verrouillé.";
