@@ -15,6 +15,7 @@ namespace TerreZero.World.Weather
         private WeatherPayload _lastWeather;
 
         public float CurrentSurfaceWetness { get; private set; }
+        public float CurrentSnowCover { get; private set; }
         public bool CurrentIsDay { get; private set; } = true;
         public float CurrentStormIntensity { get; private set; }
         public float CurrentWindSpeedKmh { get; private set; }
@@ -57,6 +58,11 @@ namespace TerreZero.World.Weather
             float precipitation = Mathf.Clamp((float)(current.PrecipitationMM / 2.0), 0f, 1f);
             float rain = Mathf.Clamp((float)((current.RainMM + current.ShowersMM) / 2.0), 0f, 1f);
             float snow = Mathf.Clamp((float)(current.SnowfallCM / 1.5), 0f, 1f);
+            CurrentSnowCover = Mathf.Clamp(
+                (float)(current.SnowfallCM / 0.8),
+                0f,
+                1f
+            );
             CurrentSurfaceWetness = Mathf.Clamp(
                 Mathf.Max(rain, precipitation * 0.85f),
                 0f,
