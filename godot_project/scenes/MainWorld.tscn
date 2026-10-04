@@ -1,7 +1,9 @@
-[gd_scene load_steps=6 format=3 uid="uid://b2847c928a9b"]
+[gd_scene load_steps=8 format=3 uid="uid://b2847c928a9b"]
 
 [ext_resource type="Script" path="res://scripts/WorldBootstrap.cs" id="1_bootstrap"]
 [ext_resource type="PackedScene" path="res://scenes/Player.tscn" id="2_player"]
+[ext_resource type="PackedScene" path="res://scenes/StartLocationUI.tscn" id="3_start"]
+[ext_resource type="PackedScene" path="res://scenes/GameHUD.tscn" id="4_hud"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_sky"]
 sky_top_color = Color(0.04, 0.08, 0.15, 1)
@@ -41,3 +43,8 @@ shadow_enabled = true
 
 [node name="Player" parent="." instance=ExtResource("2_player")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 1.8, -6)
+
+[node name="GameHUD" parent="." instance=ExtResource("4_hud")]
+visible = false
+
+[node name="StartLocationUI" parent="." instance=ExtResource("3_start")]
