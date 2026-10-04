@@ -53,6 +53,15 @@ namespace TerreZero.Chimeres
             Scale = ScaleForRole(wild.Role);
         }
 
+        public void Reactivate()
+        {
+            if (_consumed)
+                return;
+
+            Monitoring = true;
+            Visible = true;
+        }
+
         public void Consume()
         {
             _consumed = true;
