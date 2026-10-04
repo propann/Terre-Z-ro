@@ -378,6 +378,7 @@ func main() {
 	mux.HandleFunc("/api/v1/spatial/cell", handleResolveSpatialCell)
 	mux.HandleFunc("/api/v1/spatial/start", handleValidateStartLocation)
 	mux.HandleFunc("/api/v1/weather", handleWeather)
+	mux.HandleFunc("/api/v1/osm/refresh/", handleRefreshOSMCell)
 	mux.HandleFunc("/ws/spatial", handleSpatialWebSocket)
 
 	server := &http.Server{
@@ -566,9 +567,52 @@ func handleGetWorldCell(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := pg.EnsureWorldCell(r.Context(), h3, false); err != nil {
+		log.Printf("OSM import %s: %v", h3, err)
+	}
+
 	cell, err := pg.LoadWorldCell(r.Context(), h3)
 	if err != nil {
 		log.Printf("world cell %s: %v", h3, err)
+		http.Error(w, "lecture de la cellule monde impossible", http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, cell)
+}
+
+func handleRefreshOSMCell(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "méthode non autorisée", http.StatusMethodNotAllowed)
+		return
+	}
+
+	h3Index := strings.TrimSpace(
+		strings.TrimPrefix(r.URL.Path, "/api/v1/osm/refresh/"),
+	)
+	if !validH3(h3Index) {
+		http.Error(w, "index H3 invalide", http.StatusBadRequest)
+		return
+	}
+
+	pg, ok := store.(*postgresStore)
+	if !ok {
+		http.Error(
+			w,
+			"import OSM nécessite PostgreSQL/PostGIS",
+			http.StatusServiceUnavailable,
+		)
+		return
+	}
+
+	if err := pg.EnsureWorldCell(r.Context(), h3Index, true); err != nil {
+		log.Printf("OSM refresh %s: %v", h3Index, err)
+		http.Error(w, "rafraîchissement OSM impossible", http.StatusBadGateway)
+		return
+	}
+
+	cell, err := pg.LoadWorldCell(r.Context(), h3Index)
+	if err != nil {
 		http.Error(w, "lecture de la cellule monde impossible", http.StatusInternalServerError)
 		return
 	}
