@@ -93,6 +93,7 @@ POINTS INSUFFISANTS.";
                 return;
             }
 
+            ChimereSaveStore.Save();
             RebuildList();
         }
 
