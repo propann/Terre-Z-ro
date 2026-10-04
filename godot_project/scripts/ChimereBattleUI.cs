@@ -156,6 +156,7 @@ namespace TerreZero.UI
             {
                 ChimereGameState.Roster.Capture(_wild);
                 _active.Bond = Math.Min(100, _active.Bond + 4);
+                ChimereSaveStore.Save();
                 ChimereCaptured?.Invoke(_wild);
                 SetButtonsEnabled(false);
                 _capture.Disabled = true;
@@ -173,6 +174,8 @@ namespace TerreZero.UI
             int xp = 18 + _wild.Level * 9;
             bool levelUp = ChimereCombatEngine.GrantExperience(_active, xp);
             _active.Bond = Math.Min(100, _active.Bond + 2);
+
+            ChimereSaveStore.Save();
 
             _log.Text =
                 $"{_wild.Name} est neutralisée. +{xp} XP." +
