@@ -23,6 +23,7 @@ namespace TerreZero.World.Voxel
         private readonly string _h3Index;
         private readonly Dictionary<Vector3I, VoxelChunk> _chunks = new();
         private float _surfaceWetness;
+        private float _snowCover;
         private bool _xrayActive;
 
         public VoxelWorldGrid(Node3D container, string h3Index)
@@ -55,6 +56,7 @@ namespace TerreZero.World.Voxel
             _container.AddChild(chunk);
             _chunks[chunkCoord] = chunk;
             chunk.SetSurfaceWetness(_surfaceWetness);
+            chunk.SetSnowCover(_snowCover);
             chunk.SetXrayActive(_xrayActive);
             return chunk;
         }
@@ -187,6 +189,14 @@ namespace TerreZero.World.Voxel
 
             foreach (var chunk in _chunks.Values)
                 chunk.SetSurfaceWetness(_surfaceWetness);
+        }
+
+        public void SetSnowCover(float snowCover)
+        {
+            _snowCover = Mathf.Clamp(snowCover, 0f, 1f);
+
+            foreach (var chunk in _chunks.Values)
+                chunk.SetSnowCover(_snowCover);
         }
 
         public void SetXrayActive(bool active)
