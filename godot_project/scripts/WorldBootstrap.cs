@@ -808,6 +808,7 @@ namespace TerreZero.World
         private void OnScannerChanged(bool active)
         {
             _hud?.SetScanner(active);
+            _world?.SetXrayActive(active);
         }
 
         private void OnRemoteDeltaReceived(VoxelDeltaEvent delta)
