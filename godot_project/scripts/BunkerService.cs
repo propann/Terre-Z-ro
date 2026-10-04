@@ -101,6 +101,39 @@ namespace TerreZero.Bunker
             return true;
         }
 
+        public static bool TryDecontaminate(out string message)
+        {
+            if (!State.MedicalBayBuilt)
+            {
+                message = "Construisez d'abord l'infirmerie.";
+                return false;
+            }
+
+            if (GameState.Player.Radiation <= 0)
+            {
+                message = "Aucune contamination détectée.";
+                return false;
+            }
+
+            if (!GameState.Inventory.Remove("med_gel", 1))
+            {
+                message = "Gel médical requis.";
+                return false;
+            }
+
+            int before = GameState.Player.Radiation;
+            GameState.Player.Radiation = Math.Max(
+                0,
+                GameState.Player.Radiation - 35
+            );
+
+            message =
+                $"Décontamination : {before}% → {GameState.Player.Radiation}% RAD.";
+            GlobalSaveStore.SaveAll();
+            BunkerSaveStore.Save();
+            return true;
+        }
+
         public static bool RefineScrap(int amount, out string message)
         {
             if (!State.RefineryBuilt)
