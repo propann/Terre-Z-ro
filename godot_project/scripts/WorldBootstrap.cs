@@ -27,8 +27,8 @@ namespace TerreZero.World
         [Export(PropertyHint.Enum, "5 km,10 km")]
         public int StartRadiusKm { get; set; } = 10;
 
-        public double AnchorLatitude { get; private set; }
-        public double AnchorLongitude { get; private set; }
+        public double AnchorLatitude { get; private set; } = 45.0;
+        public double AnchorLongitude { get; private set; } = 5.0;
 
         private readonly ConcurrentQueue<VoxelDeltaEvent> _remoteDeltas = new();
 
@@ -125,7 +125,9 @@ namespace TerreZero.World
             _world = new VoxelWorldGrid(_container, _activeH3);
 
             bool generatedRemoteWorld = false;
-            if (UseRemoteWorldData)
+            bool canUseRemoteWorld = UseRemoteWorldData && LocationPermissionGranted;
+
+            if (canUseRemoteWorld)
             {
                 try
                 {
@@ -142,7 +144,7 @@ namespace TerreZero.World
             if (!generatedRemoteWorld && allowDemoFallback)
                 GenerateDemoWorld();
 
-            if (UseRemoteWorldData)
+            if (canUseRemoteWorld)
             {
                 try
                 {
