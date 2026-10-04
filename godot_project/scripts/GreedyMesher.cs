@@ -99,7 +99,8 @@ namespace TerreZero.World.Voxel
             }
 
             surfaceTool.GenerateNormals();
-            surfaceTool.GenerateTangents();
+            // Tangents require UVs. The current voxel mesh uses vertex colors
+            // and simple materials, so generating tangents here is invalid.
             var arrayMesh = surfaceTool.Commit();
 
             if (chunk.MeshInstance == null)
