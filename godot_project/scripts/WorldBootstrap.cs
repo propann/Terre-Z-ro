@@ -490,6 +490,7 @@ namespace TerreZero.World
         {
             _hud?.Show();
             _hud?.SetSector(_activeH3);
+            _hud?.SetAnchor(AnchorLatitude, AnchorLongitude);
             _hud?.SetHint("I : TERMINAL • C : CHIMÈRE • T : DRESSAGE • F : X-RAY • H : SOIN • SHIFT : SPRINT");
             _playerController?.SetGameplayEnabled(true);
         }
