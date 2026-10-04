@@ -1,4 +1,5 @@
 using Godot;
+using TerreZero.Gameplay;
 using TerreZero.World.Voxel;
 
 namespace TerreZero.UI
@@ -9,6 +10,7 @@ namespace TerreZero.UI
         private Label _mode;
         private Label _material;
         private Label _hint;
+        private Label _survival;
 
         public override void _Ready()
         {
@@ -16,8 +18,19 @@ namespace TerreZero.UI
             _mode = GetNode<Label>("%Mode");
             _material = GetNode<Label>("%Material");
             _hint = GetNode<Label>("%Hint");
+            _survival = GetNodeOrNull<Label>("%Survival");
             SetSector("LOCAL / INITIALISATION");
             SetMaterial(VoxelMaterial.SteelBarricade);
+        }
+
+        public override void _Process(double delta)
+        {
+            if (_survival == null)
+                return;
+
+            var p = GameState.Player;
+            _survival.Text =
+                $"PV {p.Health}/{p.MaxHealth}  •  END {p.Stamina}/{p.MaxStamina}  •  RAD {p.Radiation}%";
         }
 
         public void SetSector(string value)
