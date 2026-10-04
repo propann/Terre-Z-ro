@@ -49,6 +49,7 @@ namespace TerreZero.World
         private ChimereBattleUI _battleUI;
         private ChimereTrainingUI _trainingUI;
         private FieldTerminalUI _fieldTerminal;
+        private SectorArrivalUI _sectorArrival;
         private readonly ChimereEncounterDirector _encounters = new();
         private PackedScene _chimereActorScene;
         private ChimereWorldActor _activeEncounterActor;
@@ -101,6 +102,12 @@ namespace TerreZero.World
             _fieldTerminal = new FieldTerminalUI { Name = "FieldTerminalUI" };
             AddChild(_fieldTerminal);
             _fieldTerminal.Closed += OnFieldTerminalClosed;
+
+            _sectorArrival = new SectorArrivalUI
+            {
+                Name = "SectorArrivalUI"
+            };
+            AddChild(_sectorArrival);
             _activeH3 = DemoH3Index;
 
             if (!UseRemoteWorldData)
@@ -563,6 +570,13 @@ namespace TerreZero.World
             SpawnLootCaches();
             SpawnRadiationHazards();
             SpawnUrbanDecor();
+
+            _sectorArrival?.ShowSector(
+                _activeH3,
+                AnchorLatitude,
+                AnchorLongitude,
+                ResolveEncounterContext()
+            );
         }
 
         private void SpawnWorldChimeres()
