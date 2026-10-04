@@ -44,13 +44,17 @@ namespace TerreZero.UI
                     Text = $"{chimere.Name}  NIV {chimere.Level}  LIEN {chimere.Bond}",
                     CustomMinimumSize = new Vector2(300, 38)
                 };
+
                 button.Pressed += () => Select(chimere);
                 _teamList.AddChild(button);
             }
 
-            _points.Text = $"POINTS DE DRESSAGE : {ChimereGameState.TrainingPoints}";
+            _points.Text =
+                $"POINTS DE DRESSAGE : {ChimereGameState.TrainingPoints}";
+
             if (_selected == null)
                 _selected = ChimereGameState.Roster.Active;
+
             RefreshDetails();
         }
 
@@ -69,15 +73,12 @@ namespace TerreZero.UI
             }
 
             _details.Text =
-                $"{_selected.Name.ToUpperInvariant()} // {_selected.Affinity}
-" +
-                $"Niveau {_selected.Level}   PV {_selected.MaxHp}   ATK {_selected.Attack}   DEF {_selected.Defense}
-" +
-                $"Lien {_selected.Bond}/100   Dressage {_selected.Training}
-
-" +
-                $"PASSIF : {_selected.PassiveName}
-{_selected.PassiveDescription}";
+                $"{_selected.Name.ToUpperInvariant()} // {_selected.Affinity}\n" +
+                $"Niveau {_selected.Level}   PV {_selected.MaxHp}   " +
+                $"ATK {_selected.Attack}   DEF {_selected.Defense}\n" +
+                $"Lien {_selected.Bond}/100   Dressage {_selected.Training}\n\n" +
+                $"PASSIF : {_selected.PassiveName}\n" +
+                $"{_selected.PassiveDescription}";
         }
 
         private void Train(int intensity)
@@ -87,9 +88,7 @@ namespace TerreZero.UI
 
             if (!ChimereGameState.TryTrain(_selected.Id, intensity))
             {
-                _details.Text += "
-
-POINTS INSUFFISANTS.";
+                _details.Text += "\n\nPOINTS INSUFFISANTS.";
                 return;
             }
 
