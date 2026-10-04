@@ -22,9 +22,32 @@ namespace TerreZero.World.Generation
                 widthMeters * 0.5f / VoxelChunk.VoxelScale
             );
 
-            VoxelMaterial material = ResolveSurfaceMaterial(surface);
+            VoxelMaterial material = ResolveSurfaceMaterial(
+                highwayType,
+                surface
+            );
+
+            bool vehicleRoad = IsVehicleRoad(highwayType);
+            float shoulderRadiusVoxels = vehicleRoad
+                ? Math.Max(
+                    radiusVoxels,
+                    (widthMeters * 0.5f + 1.2f) / VoxelChunk.VoxelScale
+                )
+                : radiusVoxels;
 
             for (int i = 0; i < polylineMeters.Length - 1; i++)
+            {
+                if (vehicleRoad)
+                {
+                    RasterizeSegment(
+                        world,
+                        polylineMeters[i],
+                        polylineMeters[i + 1],
+                        shoulderRadiusVoxels,
+                        VoxelMaterial.Sidewalk
+                    );
+                }
+
                 RasterizeSegment(
                     world,
                     polylineMeters[i],
@@ -32,6 +55,7 @@ namespace TerreZero.World.Generation
                     radiusVoxels,
                     material
                 );
+            }
         }
 
         private static void RasterizeSegment(
@@ -89,19 +113,46 @@ namespace TerreZero.World.Generation
                 "footway" => 1.8f,
                 "path" => 1.4f,
                 "cycleway" => 2.0f,
+                "pedestrian" => 3.0f,
                 _ => Math.Max(4.0f, safeLanes * 2.5f)
             };
         }
 
-        private static VoxelMaterial ResolveSurfaceMaterial(string surface)
+        private static bool IsVehicleRoad(string highwayType)
         {
-            return surface switch
+            return highwayType is
+                "motorway" or
+                "trunk" or
+                "primary" or
+                "secondary" or
+                "tertiary" or
+                "residential" or
+                "service";
+        }
+
+        private static VoxelMaterial ResolveSurfaceMaterial(
+            string highwayType,
+            string surface)
+        {
+            if (surface == "grass")
+                return VoxelMaterial.GrassOrganic;
+
+            if (surface == "paving_stones")
+                return VoxelMaterial.Sidewalk;
+
+            if (surface == "concrete")
+                return VoxelMaterial.Concrete;
+
+            if (highwayType is
+                "footway" or
+                "path" or
+                "cycleway" or
+                "pedestrian")
             {
-                "grass" => VoxelMaterial.GrassOrganic,
-                "paving_stones" => VoxelMaterial.Sidewalk,
-                "concrete" => VoxelMaterial.Concrete,
-                _ => VoxelMaterial.Asphalt
-            };
+                return VoxelMaterial.Sidewalk;
+            }
+
+            return VoxelMaterial.Asphalt;
         }
     }
 }
