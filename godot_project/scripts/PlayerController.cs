@@ -26,6 +26,7 @@ namespace TerreZero.World.Voxel
         public VoxelMaterial SelectedMaterial { get; set; } = VoxelMaterial.SteelBarricade;
         public bool IsXrayActive { get; set; }
         public event Action<bool> ScannerChanged;
+        public event Action<VoxelMaterial> MaterialChanged;
         public bool GameplayEnabled { get; private set; } = true;
 
         public void SetGameplayEnabled(bool enabled)
@@ -73,6 +74,18 @@ namespace TerreZero.World.Voxel
                 Input.MouseMode == Input.MouseModeEnum.Visible)
             {
                 Input.MouseMode = Input.MouseModeEnum.Captured;
+                return;
+            }
+
+            if (@event is InputEventMouseButton wheel &&
+                wheel.Pressed &&
+                Input.MouseMode == Input.MouseModeEnum.Captured &&
+                (wheel.ButtonIndex == MouseButton.WheelUp ||
+                 wheel.ButtonIndex == MouseButton.WheelDown))
+            {
+                CycleBuildMaterial(
+                    wheel.ButtonIndex == MouseButton.WheelUp ? 1 : -1
+                );
                 return;
             }
 
@@ -201,6 +214,33 @@ namespace TerreZero.World.Voxel
                 targetFov,
                 Mathf.Clamp((float)delta * 7f, 0f, 1f)
             );
+        }
+
+        private void CycleBuildMaterial(int direction)
+        {
+            VoxelMaterial[] buildPalette =
+            {
+                VoxelMaterial.SteelBarricade,
+                VoxelMaterial.Concrete,
+                VoxelMaterial.Brick,
+                VoxelMaterial.ReinforcedGlass,
+                VoxelMaterial.TurretBase
+            };
+
+            int index = Array.IndexOf(
+                buildPalette,
+                SelectedMaterial
+            );
+
+            if (index < 0)
+                index = 0;
+
+            index = (index + direction) % buildPalette.Length;
+            if (index < 0)
+                index += buildPalette.Length;
+
+            SelectedMaterial = buildPalette[index];
+            MaterialChanged?.Invoke(SelectedMaterial);
         }
 
         private void ProcessVoxelInteraction()
