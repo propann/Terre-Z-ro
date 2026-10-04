@@ -37,6 +37,7 @@ namespace TerreZero.World
 
         private Node3D _container;
         private Node3D _chimereContainer;
+        private Node3D _lootContainer;
         private Node3D _player;
         private PlayerController _playerController;
         private StartLocationUI _startUI;
@@ -57,6 +58,8 @@ namespace TerreZero.World
         {
             _container = GetNode<Node3D>("VoxelWorldContainer");
             _chimereContainer = GetNode<Node3D>("ChimereWorldContainer");
+            _lootContainer = new Node3D { Name = "LootWorldContainer" };
+            AddChild(_lootContainer);
             _chimereActorScene = GD.Load<PackedScene>("res://scenes/ChimereWorldActor.tscn");
             _player = GetNode<Node3D>("Player");
             _playerController = _player as PlayerController;
@@ -373,6 +376,7 @@ namespace TerreZero.World
 
             _world.UpdateVisibility(_player.GlobalPosition, StreamRadiusChunks);
             SpawnWorldChimeres();
+            SpawnLootCaches();
         }
 
         private void SpawnWorldChimeres()
@@ -406,6 +410,58 @@ namespace TerreZero.World
                 _chimereContainer.AddChild(actor);
                 actor.Configure(wild);
             }
+        }
+
+        private void SpawnLootCaches()
+        {
+            if (_lootContainer == null || _player == null)
+                return;
+
+            foreach (Node child in _lootContainer.GetChildren())
+                child.QueueFree();
+
+            string context = ResolveEncounterContext();
+            Vector3 origin = _player.GlobalPosition;
+
+            Vector3[] offsets =
+            {
+                new Vector3(4f, 0f, 9f),
+                new Vector3(-7f, 0f, -5f),
+                new Vector3(12f, 0f, -2f)
+            };
+
+            for (int i = 0; i < offsets.Length; i++)
+            {
+                var cache = new LootContainerActor
+                {
+                    Name = $"LootCache_{i + 1}",
+                    SourceId = $"{_activeH3}:cache:{i}",
+                    Context = context,
+                    Seed = (_activeH3 ?? string.Empty).GetHashCode() ^ (i * 7919),
+                    Position = origin + offsets[i]
+                };
+
+                cache.Looted += OnLootCacheLooted;
+                _lootContainer.AddChild(cache);
+            }
+        }
+
+        private void OnLootCacheLooted(
+            LootContainerActor cache,
+            LootBundle bundle)
+        {
+            string summary = bundle.Entries.Count == 0
+                ? "CACHE VIDE"
+                : string.Join(
+                    " • ",
+                    bundle.Entries.ConvertAll(entry =>
+                    {
+                        ItemDefinition item = ItemCatalog.Get(entry.ItemId);
+                        return $"{item?.Name ?? entry.ItemId} x{entry.Quantity}";
+                    })
+                );
+
+            _hud?.SetHint($"LOOT : {summary}");
         }
 
         private async Task<bool> GenerateRemoteWorldAsync()
