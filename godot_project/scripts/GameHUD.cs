@@ -12,6 +12,7 @@ namespace TerreZero.UI
         private Label _hint;
         private Label _survival;
         private Label _weather;
+        private Label _anchor;
 
         public override void _Ready()
         {
@@ -21,6 +22,7 @@ namespace TerreZero.UI
             _hint = GetNode<Label>("%Hint");
             _survival = GetNodeOrNull<Label>("%Survival");
             _weather = GetNodeOrNull<Label>("%Weather");
+            _anchor = GetNodeOrNull<Label>("%Anchor");
             SetSector("LOCAL / INITIALISATION");
             SetMaterial(VoxelMaterial.SteelBarricade);
         }
@@ -39,6 +41,15 @@ namespace TerreZero.UI
         {
             if (_sector != null)
                 _sector.Text = $"SECTEUR // {value}";
+        }
+
+        public void SetAnchor(double latitude, double longitude)
+        {
+            if (_anchor != null)
+            {
+                _anchor.Text =
+                    $"ANCRE // {latitude:F5}, {longitude:F5}";
+            }
         }
 
         public void SetMaterial(VoxelMaterial material)
