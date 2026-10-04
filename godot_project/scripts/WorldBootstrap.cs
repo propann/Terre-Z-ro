@@ -267,6 +267,46 @@ namespace TerreZero.World
             ExplorationState.Save();
         }
 
+        private async void OnLocationPermissionChanged(bool enabled)
+        {
+            if (!enabled || _startUI == null)
+                return;
+
+            try
+            {
+                DesktopLocationResult location =
+                    await DesktopLocationProvider.ResolveAsync(
+                        MachineLatitude,
+                        MachineLongitude
+                    );
+
+                MachineLatitude = location.Latitude;
+                MachineLongitude = location.Longitude;
+
+                _startUI.ShowMachineLocationResult(
+                    location.Resolved,
+                    location.Latitude,
+                    location.Longitude,
+                    location.AccuracyMeters,
+                    location.Source
+                );
+            }
+            catch (Exception ex)
+            {
+                GD.PushWarning(
+                    $"[TERRE ZÉRO] localisation desktop indisponible : {ex.Message}"
+                );
+
+                _startUI.ShowMachineLocationResult(
+                    false,
+                    MachineLatitude,
+                    MachineLongitude,
+                    0,
+                    "fallback"
+                );
+            }
+        }
+
         private async void OnStartConfirmed(double latitude, double longitude, int radiusKm)
         {
             if (_loadingStart || _startUI == null)
