@@ -178,6 +178,20 @@ namespace TerreZero.World.Voxel
             IsDirty = false;
         }
 
+        public void SetSurfaceWetness(float wetness)
+        {
+            wetness = Mathf.Clamp(wetness, 0f, 1f);
+
+            if (MeshInstance?.MaterialOverride is not StandardMaterial3D material)
+                return;
+
+            material.Roughness = Mathf.Lerp(0.82f, 0.24f, wetness);
+            material.Metallic = Mathf.Lerp(0.08f, 0.14f, wetness);
+
+            float darken = Mathf.Lerp(1.0f, 0.72f, wetness);
+            material.AlbedoColor = new Color(darken, darken, darken, 1f);
+        }
+
         public void SetStreamingActive(bool active)
         {
             Visible = active;
