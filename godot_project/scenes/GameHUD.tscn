@@ -36,6 +36,13 @@ theme_override_colors/font_color = Color(0.72, 0.80, 0.80, 0.9)
 theme_override_font_sizes/font_size = 13
 text = "SECTEUR // —"
 
+[node name="Anchor" type="Label" parent="Root/TopLeft"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.56, 0.68, 0.72, 0.88)
+theme_override_font_sizes/font_size = 11
+text = "ANCRE // —"
+
 [node name="Mode" type="Label" parent="Root/TopLeft"]
 unique_name_in_owner = true
 layout_mode = 2
