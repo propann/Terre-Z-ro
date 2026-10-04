@@ -23,3 +23,6 @@ collide_with_areas = true
 
 [node name="BlockHighlight" type="MeshInstance3D" parent="."]
 visible = false
+
+[node name="SurvivalAdapter" type="Node" parent="."]
+script = ExtResource("2_survival")
