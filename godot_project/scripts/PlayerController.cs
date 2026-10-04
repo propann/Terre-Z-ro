@@ -49,6 +49,7 @@ namespace TerreZero.World.Voxel
             _camera = GetNode<Camera3D>("Camera3D");
             _rayCast = GetNode<RayCast3D>("Camera3D/RayCast3D");
             _blockHighlight = GetNodeOrNull<MeshInstance3D>("BlockHighlight");
+            ConfigureBlockHighlight();
             _cameraBasePosition = _camera.Position;
             _camera.Fov = BaseFov;
             _rayCast.TargetPosition = new Vector3(0, 0, -MineReach);
@@ -137,6 +138,7 @@ namespace TerreZero.World.Voxel
             Velocity = velocity;
             MoveAndSlide();
             UpdateCameraMotion(delta);
+            UpdateBlockHighlight();
             ProcessVoxelInteraction();
         }
 
@@ -214,6 +216,73 @@ namespace TerreZero.World.Voxel
                 targetFov,
                 Mathf.Clamp((float)delta * 7f, 0f, 1f)
             );
+        }
+
+        private void ConfigureBlockHighlight()
+        {
+            if (_blockHighlight == null)
+                return;
+
+            _blockHighlight.Mesh = new BoxMesh
+            {
+                Size = Vector3.One * (VoxelChunk.VoxelScale * 1.06f)
+            };
+
+            _blockHighlight.MaterialOverride = new StandardMaterial3D
+            {
+                Transparency = BaseMaterial3D.TransparencyEnum.Alpha,
+                ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
+                AlbedoColor = new Color(0.98f, 0.58f, 0.12f, 0.16f),
+                EmissionEnabled = true,
+                Emission = new Color(0.98f, 0.48f, 0.08f),
+                EmissionEnergyMultiplier = 0.55f,
+                CullMode = BaseMaterial3D.CullModeEnum.Disabled
+            };
+
+            _blockHighlight.Visible = false;
+        }
+
+        private void UpdateBlockHighlight()
+        {
+            if (_blockHighlight == null || _rayCast == null)
+                return;
+
+            if (!_rayCast.IsColliding())
+            {
+                _blockHighlight.Visible = false;
+                return;
+            }
+
+            var collider = _rayCast.GetCollider();
+            if (collider is not StaticBody3D staticBody ||
+                staticBody.GetParent() is not VoxelChunk chunk)
+            {
+                _blockHighlight.Visible = false;
+                return;
+            }
+
+            Vector3 collisionPoint = _rayCast.GetCollisionPoint();
+            Vector3 local = chunk.ToLocal(collisionPoint);
+
+            int vx = Mathf.FloorToInt(
+                local.X / VoxelChunk.VoxelScale
+            );
+            int vy = Mathf.FloorToInt(
+                local.Y / VoxelChunk.VoxelScale
+            );
+            int vz = Mathf.FloorToInt(
+                local.Z / VoxelChunk.VoxelScale
+            );
+
+            Vector3 centerLocal = new Vector3(
+                (vx + 0.5f) * VoxelChunk.VoxelScale,
+                (vy + 0.5f) * VoxelChunk.VoxelScale,
+                (vz + 0.5f) * VoxelChunk.VoxelScale
+            );
+
+            _blockHighlight.GlobalPosition =
+                chunk.ToGlobal(centerLocal);
+            _blockHighlight.Visible = true;
         }
 
         private void CycleBuildMaterial(int direction)
