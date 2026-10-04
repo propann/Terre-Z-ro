@@ -21,6 +21,11 @@ namespace TerreZero.UI
         private Button _capture;
         private Button _flee;
         private Button[] _moveButtons;
+        private Button[] _switchButtons;
+        private ChimereBattlePortrait _enemyPortrait;
+        private ChimereBattlePortrait _playerPortrait;
+
+        public bool EncounterResolved { get; private set; }
 
         private ChimereCombatEngine _engine;
         private ChimereCombatant _wild;
@@ -40,6 +45,8 @@ namespace TerreZero.UI
             _captureChance = GetNode<Label>("%CaptureChance");
             _capture = GetNode<Button>("%Capture");
             _flee = GetNode<Button>("%Flee");
+            _enemyPortrait = GetNode<ChimereBattlePortrait>("%EnemyPortrait");
+            _playerPortrait = GetNode<ChimereBattlePortrait>("%PlayerPortrait");
 
             _moveButtons = new[]
             {
@@ -55,6 +62,19 @@ namespace TerreZero.UI
                 _moveButtons[i].Pressed += () => OnMovePressed(index);
             }
 
+            _switchButtons = new[]
+            {
+                GetNode<Button>("%Switch1"),
+                GetNode<Button>("%Switch2"),
+                GetNode<Button>("%Switch3")
+            };
+
+            for (int i = 0; i < _switchButtons.Length; i++)
+            {
+                int index = i;
+                _switchButtons[i].Pressed += () => OnSwitchPressed(index);
+            }
+
             _capture.Pressed += OnCapturePressed;
             _flee.Pressed += CloseBattle;
             Visible = false;
@@ -68,6 +88,7 @@ namespace TerreZero.UI
 
             _wild = wild.Clone();
             _engine = new ChimereCombatEngine(seed);
+            EncounterResolved = false;
             _busy = false;
             Visible = true;
             Input.MouseMode = Input.MouseModeEnum.Visible;
@@ -87,6 +108,7 @@ namespace TerreZero.UI
                 _engine.ExecuteMove(_active, _wild, _active.Moves[index]);
 
             _log.Text = playerResult.Message;
+            _enemyPortrait.HitFlash();
             Refresh();
 
             if (_wild.IsDefeated)
@@ -129,6 +151,7 @@ namespace TerreZero.UI
 
             var move = _wild.Moves[moveIndex];
             BattleActionResult result = _engine.ExecuteMove(_wild, _active, move);
+            _playerPortrait.HitFlash();
             _log.Text += $"\n{result.Message}";
         }
 
@@ -152,6 +175,7 @@ namespace TerreZero.UI
                 ChimereGameState.Roster.Capture(_wild);
                 _active.Bond = Math.Min(100, _active.Bond + 4);
                 ChimereSaveStore.Save();
+                EncounterResolved = true;
                 ChimereCaptured?.Invoke(_wild);
                 SetButtonsEnabled(false);
                 _capture.Disabled = true;
@@ -164,12 +188,33 @@ namespace TerreZero.UI
             Refresh();
         }
 
+        private void OnSwitchPressed(int index)
+        {
+            if (_busy || index < 0 || index >= ChimereGameState.Roster.Team.Count)
+                return;
+
+            ChimereCombatant target = ChimereGameState.Roster.Team[index];
+            if (target.IsDefeated || target.Id == _active.Id)
+                return;
+
+            _busy = true;
+            ChimereGameState.Roster.SetActive(target.Id);
+            _active = ChimereGameState.Roster.Active;
+            _log.Text = $"{_active.Name} entre en synchronisation.";
+
+            ExecuteEnemyTurn();
+
+            _busy = false;
+            Refresh();
+        }
+
         private void ResolveVictory()
         {
             int xp = 18 + _wild.Level * 9;
             bool levelUp = ChimereCombatEngine.GrantExperience(_active, xp);
             _active.Bond = Math.Min(100, _active.Bond + 2);
             ChimereSaveStore.Save();
+            EncounterResolved = true;
 
             _log.Text =
                 $"{_wild.Name} est neutralisée. +{xp} XP." +
@@ -198,6 +243,26 @@ namespace TerreZero.UI
             _enemyStability.Value = _wild.Stability;
             _playerHp.MaxValue = _active.MaxHp;
             _playerHp.Value = _active.CurrentHp;
+
+            _enemyPortrait.Configure(_wild, true);
+            _playerPortrait.Configure(_active, false);
+
+            for (int i = 0; i < _switchButtons.Length; i++)
+            {
+                if (i < ChimereGameState.Roster.Team.Count)
+                {
+                    ChimereCombatant member = ChimereGameState.Roster.Team[i];
+                    _switchButtons[i].Visible = true;
+                    _switchButtons[i].Text =
+                        $"{member.Name.ToUpperInvariant()}  NIV {member.Level}";
+                    _switchButtons[i].Disabled =
+                        member.IsDefeated || member.Id == _active.Id || _busy;
+                }
+                else
+                {
+                    _switchButtons[i].Visible = false;
+                }
+            }
 
             for (int i = 0; i < _moveButtons.Length; i++)
             {
