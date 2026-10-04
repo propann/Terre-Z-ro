@@ -84,7 +84,10 @@ namespace TerreZero.World.Generation
         {
             for (int x = minX - 3; x <= maxX + 3; x++)
             for (int z = minZ - 3; z <= maxZ + 3; z++)
-                world.SetVoxelGlobal(x, 0, z, VoxelMaterial.Asphalt);
+            {
+                if (world.GetVoxelGlobal(x, 0, z) == VoxelMaterial.Air)
+                    world.SetVoxelGlobal(x, 0, z, VoxelMaterial.Sidewalk);
+            }
         }
 
         private static void GenerateShell(
