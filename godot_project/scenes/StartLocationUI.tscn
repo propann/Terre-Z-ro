@@ -1,0 +1,243 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://scripts/StartLocationUI.cs" id="1_script"]
+
+[sub_resource type="StyleBoxFlat" id="panel"]
+bg_color = Color(0.035, 0.05, 0.065, 0.96)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.31, 0.37, 0.38, 0.9)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+shadow_color = Color(0, 0, 0, 0.55)
+shadow_size = 16
+
+[sub_resource type="StyleBoxFlat" id="button"]
+bg_color = Color(0.10, 0.13, 0.15, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.35, 0.42, 0.43, 1)
+corner_radius_top_left = 5
+corner_radius_top_right = 5
+corner_radius_bottom_left = 5
+corner_radius_bottom_right = 5
+
+[sub_resource type="StyleBoxFlat" id="button_hover"]
+bg_color = Color(0.17, 0.20, 0.20, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.91, 0.64, 0.23, 1)
+corner_radius_top_left = 5
+corner_radius_top_right = 5
+corner_radius_bottom_left = 5
+corner_radius_bottom_right = 5
+
+[sub_resource type="StyleBoxFlat" id="confirm"]
+bg_color = Color(0.82, 0.48, 0.12, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_left = 6
+corner_radius_bottom_right = 6
+
+[sub_resource type="StyleBoxFlat" id="map"]
+bg_color = Color(0.065, 0.09, 0.115, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.25, 0.32, 0.34, 1)
+corner_radius_top_left = 7
+corner_radius_top_right = 7
+corner_radius_bottom_left = 7
+corner_radius_bottom_right = 7
+
+[sub_resource type="Theme" id="theme"]
+default_font_size = 16
+Button/styles/normal = SubResource("button")
+Button/styles/hover = SubResource("button_hover")
+Button/styles/pressed = SubResource("button_hover")
+Button/colors/font_color = Color(0.83, 0.86, 0.85, 1)
+Button/colors/font_hover_color = Color(1, 0.83, 0.55, 1)
+
+[node name="StartLocationUI" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+theme = SubResource("theme")
+script = ExtResource("1_script")
+
+[node name="Shade" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.015, 0.022, 0.029, 0.92)
+
+[node name="TopRule" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 3.0
+grow_horizontal = 2
+color = Color(0.91, 0.64, 0.23, 1)
+
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 48.0
+offset_top = 38.0
+offset_right = -48.0
+offset_bottom = -38.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Columns" type="HBoxContainer" parent="Margin"]
+layout_mode = 2
+theme_override_constants/separation = 24
+
+[node name="InfoPanel" type="PanelContainer" parent="Margin/Columns"]
+custom_minimum_size = Vector2(390, 0)
+layout_mode = 2
+theme_override_styles/panel = SubResource("panel")
+
+[node name="Padding" type="MarginContainer" parent="Margin/Columns/InfoPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 28
+theme_override_constants/margin_top = 28
+theme_override_constants/margin_right = 28
+theme_override_constants/margin_bottom = 28
+
+[node name="VBox" type="VBoxContainer" parent="Margin/Columns/InfoPanel/Padding"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="Eyebrow" type="Label" parent="Margin/Columns/InfoPanel/Padding/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.91, 0.64, 0.23, 1)
+theme_override_font_sizes/font_size = 14
+text = "INITIALISATION // PROTOCOLE D'ÉMERGENCE"
+
+[node name="Title" type="Label" parent="Margin/Columns/InfoPanel/Padding/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.96, 0.92, 1)
+theme_override_font_sizes/font_size = 42
+text = "TERRE ZÉRO"
+
+[node name="Subtitle" type="Label" parent="Margin/Columns/InfoPanel/Padding/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.60, 0.67, 0.68, 1)
+text = "Choisissez votre point d'émergence dans le monde réel."
+autowrap_mode = 2
+
+[node name="Spacer1" type="Control" parent="Margin/Columns/InfoPanel/Padding/VBox"]
+custom_minimum_size = Vector2(0, 10)
+layout_mode = 2
+
+[node name="Permission" type="CheckButton" parent="Margin/Columns/InfoPanel/Padding/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Autoriser le point de localisation du PC"
+
+[node name="Privacy" type="Label" parent="Margin/Columns/InfoPanel/Padding/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.47, 0.55, 0.57, 1)
+theme_override_font_sizes/font_size = 13
+text = "Utilisé uniquement pour limiter la zone de départ. Le point choisi devient ensuite l'ancre du monde."
+autowrap_mode = 2
+
+[node name="Separator" type="HSeparator" parent="Margin/Columns/InfoPanel/Padding/VBox"]
+layout_mode = 2
+
+[node name="RadiusLabel" type="Label" parent="Margin/Columns/InfoPanel/Padding/VBox"]
+layout_mode = 2
+text = "PÉRIMÈTRE AUTORISÉ"
+
+[node name="RadiusRow" type="HBoxContainer" parent="Margin/Columns/InfoPanel/Padding/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Radius5" type="Button" parent="Margin/Columns/InfoPanel/Padding/VBox/RadiusRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(120, 42)
+layout_mode = 2
+toggle_mode = true
+text = "5 KM"
+
+[node name="Radius10" type="Button" parent="Margin/Columns/InfoPanel/Padding/VBox/RadiusRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(120, 42)
+layout_mode = 2
+toggle_mode = true
+button_pressed = true
+text = "10 KM"
+
+[node name="CoordinatesTitle" type="Label" parent="Margin/Columns/InfoPanel/Padding/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.91, 0.64, 0.23, 1)
+theme_override_font_sizes/font_size = 13
+text = "POINT SÉLECTIONNÉ"
+
+[node name="Coordinates" type="Label" parent="Margin/Columns/InfoPanel/Padding/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.82, 0.86, 0.84, 1)
+text = "Aucun point de départ sélectionné"
+autowrap_mode = 2
+
+[node name="Status" type="Label" parent="Margin/Columns/InfoPanel/Padding/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.60, 0.69, 0.69, 1)
+theme_override_font_sizes/font_size = 13
+text = "EN ATTENTE"
+autowrap_mode = 2
+
+[node name="Flexible" type="Control" parent="Margin/Columns/InfoPanel/Padding/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Confirm" type="Button" parent="Margin/Columns/InfoPanel/Padding/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 52)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.08, 0.07, 0.05, 1)
+theme_override_font_sizes/font_size = 17
+theme_override_styles/normal = SubResource("confirm")
+theme_override_styles/hover = SubResource("confirm")
+theme_override_styles/pressed = SubResource("confirm")
+text = "COMMENCER ICI"
+
+[node name="MapPanel" type="PanelContainer" parent="Margin/Columns"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("panel")
+
+[node name="MapPadding" type="MarginContainer" parent="Margin/Columns/MapPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="MapSurface" type="Control" parent="Margin/Columns/MapPanel/MapPadding"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(620, 520)
+layout_mode = 2
+mouse_default_cursor_shape = 2
+script = ExtResource("1_script")
