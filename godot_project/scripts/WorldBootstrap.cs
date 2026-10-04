@@ -214,7 +214,7 @@ namespace TerreZero.World
                 return;
 
             string context = ResolveEncounterContext();
-            int seed = (_activeH3 ?? string.Empty).GetHashCode() ^ Environment.TickCount;
+            int seed = (_activeH3 ?? string.Empty).GetHashCode() ^ System.Environment.TickCount;
             ChimereCombatant wild = _encounters.CreateEncounter(_activeH3, context);
 
             _overlayOpen = true;
