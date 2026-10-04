@@ -39,5 +39,5 @@ jobs:
       - name: Tests
         run: go test ./...
       - name: Build backend container
-        working-directory: ../..
+        working-directory: .
         run: docker build -t terre-zero-backend-ci ./godot_project/server_go
