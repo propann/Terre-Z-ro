@@ -18,6 +18,22 @@ namespace TerreZero.World.Voxel
 
         public VoxelMaterial SelectedMaterial { get; set; } = VoxelMaterial.SteelBarricade;
         public bool IsXrayActive { get; set; }
+        public bool GameplayEnabled { get; private set; } = true;
+
+        public void SetGameplayEnabled(bool enabled)
+        {
+            GameplayEnabled = enabled;
+            SetPhysicsProcess(enabled);
+            SetProcessUnhandledInput(enabled);
+
+            if (enabled)
+                Input.MouseMode = Input.MouseModeEnum.Captured;
+            else
+            {
+                Velocity = Vector3.Zero;
+                Input.MouseMode = Input.MouseModeEnum.Visible;
+            }
+        }
 
         public override void _Ready()
         {
@@ -27,7 +43,7 @@ namespace TerreZero.World.Voxel
             _rayCast.TargetPosition = new Vector3(0, 0, -MineReach);
 
             DeltaSyncManager.Configure(ServerWebSocketUrl, PlayerId);
-            Input.MouseMode = Input.MouseModeEnum.Captured;
+            SetGameplayEnabled(true);
         }
 
         public override void _UnhandledInput(InputEvent @event)
@@ -51,6 +67,9 @@ namespace TerreZero.World.Voxel
 
         public override void _PhysicsProcess(double delta)
         {
+            if (!GameplayEnabled)
+                return;
+
             Vector3 velocity = Velocity;
 
             if (!IsOnFloor())
