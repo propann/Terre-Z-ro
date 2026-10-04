@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Threading.Tasks;
 using Godot;
 using TerreZero.Network;
 using TerreZero.World.Generation;
@@ -20,87 +21,36 @@ namespace TerreZero.World
         [Export] public string WorldApiBaseUrl { get; set; } = "http://127.0.0.1:8080";
         [Export] public double AnchorLatitude { get; set; } = 45.0;
         [Export] public double AnchorLongitude { get; set; } = 5.0;
+        [Export] public float MaxAcceptedGpsAccuracyMeters { get; set; } = 60f;
 
         private readonly ConcurrentQueue<VoxelDeltaEvent> _remoteDeltas = new();
-        private VoxelWorldGrid _world;
+
+        private Node3D _container;
         private Node3D _player;
+        private VoxelWorldGrid _world;
         private string _activeH3;
         private double _streamTimer;
+        private bool _switchingCell;
 
         public override async void _Ready()
         {
-            var container = GetNode<Node3D>("VoxelWorldContainer");
+            _container = GetNode<Node3D>("VoxelWorldContainer");
             _player = GetNode<Node3D>("Player");
             _activeH3 = DemoH3Index;
 
-            if (UseRemoteWorldData)
-            {
-                try
-                {
-                    using var spatialClient = new WorldDataClient(WorldApiBaseUrl);
-                    SpatialCellPayload resolved = await spatialClient.ResolveSpatialCellAsync(
-                        AnchorLatitude,
-                        AnchorLongitude
-                    );
-
-                    if (!string.IsNullOrWhiteSpace(resolved.H3Index))
-                        _activeH3 = resolved.H3Index;
-
-                    GD.Print(
-                        $"[TERRE ZÉRO] GPS {AnchorLatitude:F6},{AnchorLongitude:F6} → H3 {_activeH3}"
-                    );
-                }
-                catch (Exception ex)
-                {
-                    GD.PushWarning(
-                        $"[TERRE ZÉRO] GPS→H3 indisponible : {ex.Message}. " +
-                        $"Fallback {_activeH3}"
-                    );
-                }
-            }
-
-            _world = new VoxelWorldGrid(container, _activeH3);
-
-            bool generatedRemoteWorld = false;
-
-            if (UseRemoteWorldData)
-            {
-                try
-                {
-                    generatedRemoteWorld = await GenerateRemoteWorldAsync();
-                }
-                catch (Exception ex)
-                {
-                    GD.PushWarning(
-                        $"[TERRE ZÉRO] données monde indisponibles : {ex.Message}. " +
-                        "Utilisation de la zone de démonstration."
-                    );
-                }
-            }
-
-            if (!generatedRemoteWorld)
-                GenerateDemoWorld();
-
-            if (UseRemoteWorldData)
-            {
-                try
-                {
-                    await ReplayPersistentDeltasAsync();
-                }
-                catch (Exception ex)
-                {
-                    GD.PushWarning($"[TERRE ZÉRO] replay des deltas impossible : {ex.Message}");
-                }
-            }
-
-            _world.UpdateVisibility(_player.GlobalPosition, StreamRadiusChunks);
             DeltaSyncManager.RemoteDeltaReceived += OnRemoteDeltaReceived;
+            GeoLocationBridge.PositionChanged += OnGpsPositionChanged;
+
+            if (UseRemoteWorldData)
+                await ResolveInitialCellAsync();
+
+            await LoadActiveCellAsync(allowDemoFallback: true);
         }
 
         public override void _Process(double delta)
         {
             while (_remoteDeltas.TryDequeue(out var remote))
-                ApplyRemoteDelta(remote);
+                ApplyDelta(remote, rebuildImmediately: true);
 
             _streamTimer += delta;
             if (_streamTimer >= 0.25 && _world != null && _player != null)
@@ -113,18 +63,130 @@ namespace TerreZero.World
         public override void _ExitTree()
         {
             DeltaSyncManager.RemoteDeltaReceived -= OnRemoteDeltaReceived;
+            GeoLocationBridge.PositionChanged -= OnGpsPositionChanged;
         }
 
-        private async System.Threading.Tasks.Task<bool> GenerateRemoteWorldAsync()
+        private async Task ResolveInitialCellAsync()
+        {
+            try
+            {
+                using var client = new WorldDataClient(WorldApiBaseUrl);
+                SpatialCellPayload resolved = await client.ResolveSpatialCellAsync(
+                    AnchorLatitude,
+                    AnchorLongitude
+                );
+
+                if (!string.IsNullOrWhiteSpace(resolved.H3Index))
+                    _activeH3 = resolved.H3Index;
+
+                GD.Print(
+                    $"[TERRE ZÉRO] GPS {AnchorLatitude:F6},{AnchorLongitude:F6} → H3 {_activeH3}"
+                );
+            }
+            catch (Exception ex)
+            {
+                GD.PushWarning(
+                    $"[TERRE ZÉRO] GPS→H3 indisponible : {ex.Message}. Fallback {_activeH3}"
+                );
+            }
+        }
+
+        private async void OnGpsPositionChanged(GeoPositionSample sample)
+        {
+            if (!UseRemoteWorldData || _switchingCell)
+                return;
+
+            if (sample.AccuracyMeters > 0 &&
+                sample.AccuracyMeters > MaxAcceptedGpsAccuracyMeters)
+                return;
+
+            _switchingCell = true;
+            try
+            {
+                using var client = new WorldDataClient(WorldApiBaseUrl);
+                SpatialCellPayload resolved = await client.ResolveSpatialCellAsync(
+                    sample.Latitude,
+                    sample.Longitude
+                );
+
+                if (string.IsNullOrWhiteSpace(resolved.H3Index))
+                    return;
+
+                AnchorLatitude = sample.Latitude;
+                AnchorLongitude = sample.Longitude;
+
+                if (resolved.H3Index == _activeH3)
+                    return;
+
+                string previous = _activeH3;
+                _activeH3 = resolved.H3Index;
+
+                GD.Print(
+                    $"[TERRE ZÉRO] changement cellule {previous} → {_activeH3}"
+                );
+
+                _world?.UnloadAllChunks();
+                await LoadActiveCellAsync(allowDemoFallback: false);
+            }
+            catch (Exception ex)
+            {
+                GD.PushWarning($"[TERRE ZÉRO] changement GPS/H3 impossible : {ex.Message}");
+            }
+            finally
+            {
+                _switchingCell = false;
+            }
+        }
+
+        private async Task LoadActiveCellAsync(bool allowDemoFallback)
+        {
+            _world = new VoxelWorldGrid(_container, _activeH3);
+
+            bool generatedRemoteWorld = false;
+            if (UseRemoteWorldData)
+            {
+                try
+                {
+                    generatedRemoteWorld = await GenerateRemoteWorldAsync();
+                }
+                catch (Exception ex)
+                {
+                    GD.PushWarning(
+                        $"[TERRE ZÉRO] données monde indisponibles : {ex.Message}"
+                    );
+                }
+            }
+
+            if (!generatedRemoteWorld && allowDemoFallback)
+                GenerateDemoWorld();
+
+            if (UseRemoteWorldData)
+            {
+                try
+                {
+                    await ReplayPersistentDeltasAsync();
+                }
+                catch (Exception ex)
+                {
+                    GD.PushWarning(
+                        $"[TERRE ZÉRO] replay des deltas impossible : {ex.Message}"
+                    );
+                }
+
+                await DeltaSyncManager.SubscribeAsync(_activeH3);
+            }
+
+            _world.UpdateVisibility(_player.GlobalPosition, StreamRadiusChunks);
+        }
+
+        private async Task<bool> GenerateRemoteWorldAsync()
         {
             using var client = new WorldDataClient(WorldApiBaseUrl);
             WorldCellPayload cell = await client.GetCellAsync(_activeH3);
 
-            if (cell.Buildings == null || cell.Buildings.Count == 0)
-                return false;
-
             var anchor = new GeoAnchor(AnchorLatitude, AnchorLongitude);
-            int generated = 0;
+            int generatedBuildings = 0;
+            int generatedRoads = 0;
 
             if (cell.Roads != null)
             {
@@ -144,55 +206,62 @@ namespace TerreZero.World
                         road.Surface,
                         road.Lanes
                     );
+                    generatedRoads++;
                 }
             }
 
-            foreach (var building in cell.Buildings)
+            if (cell.Buildings != null)
             {
-                if (building.Geometry == null)
-                    continue;
+                foreach (var building in cell.Buildings)
+                {
+                    if (building.Geometry == null)
+                        continue;
 
-                Vector2[] polygon = building.Geometry.ProjectOuterRing(anchor);
-                if (polygon.Length < 3)
-                    continue;
+                    if (building.WorldVersion != OSMVoxelizer.WorldVersion ||
+                        building.GeneratorVersion != OSMVoxelizer.GeneratorVersion)
+                        continue;
 
-                float height = building.HeightMeters > 0
-                    ? building.HeightMeters
-                    : Math.Max(3f, building.Levels * 3f);
+                    Vector2[] polygon = building.Geometry.ProjectOuterRing(anchor);
+                    if (polygon.Length < 3)
+                        continue;
 
-                var result = OSMPolygonVoxelizer.VoxelizeBuilding(
-                    _world,
-                    polygon,
-                    height,
-                    building.BuildingType,
-                    building.Amenity,
-                    building.OSMID
-                );
+                    float height = building.HeightMeters > 0
+                        ? building.HeightMeters
+                        : Math.Max(3f, building.Levels * 3f);
 
-                generated++;
+                    var result = OSMPolygonVoxelizer.VoxelizeBuilding(
+                        _world,
+                        polygon,
+                        height,
+                        building.BuildingType,
+                        building.Amenity,
+                        building.OSMID
+                    );
 
-                GD.Print(
-                    $"[TERRE ZÉRO] OSM {building.OSMID} " +
-                    $"étages={result.Floors} pièces={result.Rooms} " +
-                    $"seed={result.Seed}"
-                );
+                    generatedBuildings++;
+
+                    GD.Print(
+                        $"[TERRE ZÉRO] OSM {building.OSMID} " +
+                        $"étages={result.Floors} pièces={result.Rooms} seed={result.Seed}"
+                    );
+                }
             }
 
-            if (generated == 0)
+            if (generatedBuildings == 0 && generatedRoads == 0)
                 return false;
 
             _world.RebuildDirtyChunks();
 
             GD.Print(
-                $"[TERRE ZÉRO] cellule réelle {_activeH3} : " +
-                $"{generated} bâtiments, {cell.Roads?.Count ?? 0} routes, " +
+                $"[TERRE ZÉRO] cellule {_activeH3} : " +
+                $"{generatedBuildings} bâtiments, {generatedRoads} routes, " +
                 $"{_world.LoadedChunkCount} chunks"
             );
 
             return true;
         }
 
-        private async System.Threading.Tasks.Task ReplayPersistentDeltasAsync()
+        private async Task ReplayPersistentDeltasAsync()
         {
             using var client = new WorldDataClient(WorldApiBaseUrl);
             CellDeltaPayload history = await client.GetDeltasAsync(_activeH3);
@@ -200,10 +269,7 @@ namespace TerreZero.World
             int applied = 0;
             foreach (var delta in history.Deltas)
             {
-                if (delta == null)
-                    continue;
-
-                if (ApplyDelta(delta, rebuildImmediately: false))
+                if (delta != null && ApplyDelta(delta, rebuildImmediately: false))
                     applied++;
             }
 
@@ -211,7 +277,7 @@ namespace TerreZero.World
                 _world.RebuildDirtyChunks();
 
             GD.Print(
-                $"[TERRE ZÉRO] deltas persistants rejoués h3={_activeH3} count={applied}"
+                $"[TERRE ZÉRO] deltas persistants h3={_activeH3} count={applied}"
             );
         }
 
@@ -240,34 +306,6 @@ namespace TerreZero.World
         private void OnRemoteDeltaReceived(VoxelDeltaEvent delta)
         {
             _remoteDeltas.Enqueue(delta);
-        }
-
-        private void ApplyRemoteDelta(VoxelDeltaEvent delta)
-        {
-            if (_world == null || delta.H3Index != _activeH3)
-                return;
-
-            if (delta.ChunkCoords == null || delta.ChunkCoords.Length != 3 ||
-                delta.LocalVoxel == null || delta.LocalVoxel.Length != 3)
-                return;
-
-            var chunkCoord = new Vector3I(
-                delta.ChunkCoords[0],
-                delta.ChunkCoords[1],
-                delta.ChunkCoords[2]
-            );
-
-            var localVoxel = new Vector3I(
-                delta.LocalVoxel[0],
-                delta.LocalVoxel[1],
-                delta.LocalVoxel[2]
-            );
-
-            var material = delta.Action == "DESTROY"
-                ? VoxelMaterial.Air
-                : (VoxelMaterial)delta.MaterialId;
-
-            ApplyDelta(delta, rebuildImmediately: true);
         }
 
         private bool ApplyDelta(VoxelDeltaEvent delta, bool rebuildImmediately)
