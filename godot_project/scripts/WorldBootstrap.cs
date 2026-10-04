@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Threading.Tasks;
 using Godot;
 using TerreZero.Network;
+using TerreZero.UI;
 using TerreZero.World.Generation;
 using TerreZero.World.Geo;
 using TerreZero.World.Voxel;
@@ -19,13 +20,12 @@ namespace TerreZero.World
 
         [Export] public bool UseRemoteWorldData { get; set; } = false;
         [Export] public string WorldApiBaseUrl { get; set; } = "http://127.0.0.1:8080";
-        [Export] public bool LocationPermissionGranted { get; set; } = false;
+
+        // Pour le prototype PC, ce point est fourni par le mécanisme de localisation
+        // du lanceur / OS. Le joueur ne joue pas obligatoirement exactement ici :
+        // il sélectionne un départ à 5 ou 10 km maximum.
         [Export] public double MachineLatitude { get; set; } = 45.0;
         [Export] public double MachineLongitude { get; set; } = 5.0;
-        [Export] public double SelectedStartLatitude { get; set; } = 45.0;
-        [Export] public double SelectedStartLongitude { get; set; } = 5.0;
-        [Export(PropertyHint.Enum, "5 km,10 km")]
-        public int StartRadiusKm { get; set; } = 10;
 
         public double AnchorLatitude { get; private set; } = 45.0;
         public double AnchorLongitude { get; private set; } = 5.0;
@@ -34,22 +34,41 @@ namespace TerreZero.World
 
         private Node3D _container;
         private Node3D _player;
+        private PlayerController _playerController;
+        private StartLocationUI _startUI;
+        private GameHUD _hud;
         private VoxelWorldGrid _world;
         private string _activeH3;
         private double _streamTimer;
+        private bool _startValidated;
+        private bool _loadingStart;
 
         public override async void _Ready()
         {
             _container = GetNode<Node3D>("VoxelWorldContainer");
             _player = GetNode<Node3D>("Player");
+            _playerController = _player as PlayerController;
+            _startUI = GetNodeOrNull<StartLocationUI>("StartLocationUI");
+            _hud = GetNodeOrNull<GameHUD>("GameHUD");
             _activeH3 = DemoH3Index;
 
             DeltaSyncManager.RemoteDeltaReceived += OnRemoteDeltaReceived;
 
-            if (UseRemoteWorldData)
-                await ResolveDesktopStartAsync();
+            if (UseRemoteWorldData && _startUI != null)
+            {
+                _startUI.Visible = true;
+                _startUI.ConfigureMachinePoint(MachineLatitude, MachineLongitude);
+                _startUI.StartConfirmed += OnStartConfirmed;
+                _hud?.Hide();
+                _playerController?.SetGameplayEnabled(false);
+                return;
+            }
+
+            if (_startUI != null)
+                _startUI.Hide();
 
             await LoadActiveCellAsync(allowDemoFallback: true);
+            EnterGameplay();
         }
 
         public override void _Process(double delta)
@@ -68,37 +87,43 @@ namespace TerreZero.World
         public override void _ExitTree()
         {
             DeltaSyncManager.RemoteDeltaReceived -= OnRemoteDeltaReceived;
+
+            if (_startUI != null)
+                _startUI.StartConfirmed -= OnStartConfirmed;
         }
 
-        private async Task ResolveDesktopStartAsync()
+        private async void OnStartConfirmed(double latitude, double longitude, int radiusKm)
         {
-            if (!LocationPermissionGranted)
-            {
-                GD.PushWarning(
-                    "[TERRE ZÉRO] localisation PC non autorisée : utilisation de la démo."
-                );
+            if (_loadingStart || _startUI == null)
                 return;
-            }
 
-            if (StartRadiusKm != 5 && StartRadiusKm != 10)
-                StartRadiusKm = 10;
+            _loadingStart = true;
 
             try
             {
+                if (!_startUI.PermissionGranted)
+                {
+                    _startUI.ShowValidationResult(
+                        false,
+                        "AUTORISATION REQUISE — le point machine sert uniquement à limiter la zone."
+                    );
+                    return;
+                }
+
                 using var client = new WorldDataClient(WorldApiBaseUrl);
                 StartLocationResponse start = await client.ValidateStartLocationAsync(
                     MachineLatitude,
                     MachineLongitude,
-                    SelectedStartLatitude,
-                    SelectedStartLongitude,
-                    StartRadiusKm
+                    latitude,
+                    longitude,
+                    radiusKm
                 );
 
-                if (!start.Allowed)
+                if (!start.Allowed || string.IsNullOrWhiteSpace(start.H3Index))
                 {
-                    GD.PushWarning(
-                        $"[TERRE ZÉRO] point de départ refusé : {start.DistanceKm:F2} km " +
-                        $"du point machine, limite {start.RadiusKm:F0} km."
+                    _startUI.ShowValidationResult(
+                        false,
+                        $"POINT HORS PÉRIMÈTRE — {start.DistanceKm:F1} km / limite {start.RadiusKm:F0} km."
                     );
                     return;
                 }
@@ -106,18 +131,39 @@ namespace TerreZero.World
                 _activeH3 = start.H3Index;
                 AnchorLatitude = start.Latitude;
                 AnchorLongitude = start.Longitude;
+                _startValidated = true;
 
-                GD.Print(
-                    $"[TERRE ZÉRO] départ PC validé à {start.DistanceKm:F2} km " +
-                    $"du point machine → H3 {_activeH3}"
+                _startUI.ShowValidationResult(
+                    true,
+                    $"SECTEUR VALIDÉ — {start.DistanceKm:F1} km du point machine. Génération du monde…"
                 );
+
+                _world?.UnloadAllChunks();
+                await LoadActiveCellAsync(allowDemoFallback: true);
+
+                _hud?.SetSector(_activeH3);
+                _startUI.EnterGame();
+                EnterGameplay();
             }
             catch (Exception ex)
             {
-                GD.PushWarning(
-                    $"[TERRE ZÉRO] validation du point de départ impossible : {ex.Message}"
+                _startUI.ShowValidationResult(
+                    false,
+                    $"CONNEXION AU MONDE IMPOSSIBLE — {ex.Message}"
                 );
             }
+            finally
+            {
+                _loadingStart = false;
+            }
+        }
+
+        private void EnterGameplay()
+        {
+            _hud?.Show();
+            _hud?.SetSector(_activeH3);
+            _hud?.SetHint("CLIC G : EXTRAIRE   •   CLIC D : CONSTRUIRE   •   F : X-RAY");
+            _playerController?.SetGameplayEnabled(true);
         }
 
         private async Task LoadActiveCellAsync(bool allowDemoFallback)
@@ -125,7 +171,7 @@ namespace TerreZero.World
             _world = new VoxelWorldGrid(_container, _activeH3);
 
             bool generatedRemoteWorld = false;
-            bool canUseRemoteWorld = UseRemoteWorldData && LocationPermissionGranted;
+            bool canUseRemoteWorld = UseRemoteWorldData && _startValidated;
 
             if (canUseRemoteWorld)
             {
