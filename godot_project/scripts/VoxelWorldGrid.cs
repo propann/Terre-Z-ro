@@ -22,6 +22,7 @@ namespace TerreZero.World.Voxel
         private readonly PackedScene _chunkScene;
         private readonly string _h3Index;
         private readonly Dictionary<Vector3I, VoxelChunk> _chunks = new();
+        private float _surfaceWetness;
 
         public VoxelWorldGrid(Node3D container, string h3Index)
         {
@@ -52,6 +53,7 @@ namespace TerreZero.World.Voxel
 
             _container.AddChild(chunk);
             _chunks[chunkCoord] = chunk;
+            chunk.SetSurfaceWetness(_surfaceWetness);
             return chunk;
         }
 
@@ -175,6 +177,14 @@ namespace TerreZero.World.Voxel
                 if (chunk.IsDirty)
                     chunk.RebuildMeshGreedy();
             }
+        }
+
+        public void SetSurfaceWetness(float wetness)
+        {
+            _surfaceWetness = Mathf.Clamp(wetness, 0f, 1f);
+
+            foreach (var chunk in _chunks.Values)
+                chunk.SetSurfaceWetness(_surfaceWetness);
         }
 
         public void UpdateVisibility(Vector3 worldPosition, int horizontalRadiusChunks)
