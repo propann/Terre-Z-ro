@@ -54,7 +54,18 @@ namespace TerreZero.World.Generation
             var wallMaterial = ResolveWallMaterial(buildingType, amenityTag);
 
             GenerateGround(world, minX - 3, maxX + 3, minZ - 3, maxZ + 3);
-            GenerateShell(world, minX, maxX, minZ, maxZ, topY, wallMaterial, seed);
+            GenerateShell(
+                world,
+                minX,
+                maxX,
+                minZ,
+                maxZ,
+                topY,
+                wallMaterial,
+                seed,
+                buildingType,
+                amenityTag
+            );
 
             int floorCount = Math.Max(1, (topY - 1) / FloorHeightVoxels + 1);
             int roomCount = GenerateInteriors(
@@ -113,7 +124,9 @@ namespace TerreZero.World.Generation
             int maxZ,
             int topY,
             VoxelMaterial wallMaterial,
-            int seed)
+            int seed,
+            string buildingType,
+            string amenityTag)
         {
             int entranceX = (minX + maxX) / 2;
             int entranceZ = minZ;
@@ -157,15 +170,46 @@ namespace TerreZero.World.Generation
 
                     int localFloorY = (y - 2) % FloorHeightVoxels;
                     bool windowBand = localFloorY >= 5 && localFloorY <= 10;
+                    bool storefront =
+                        (buildingType == "retail" || amenityTag == "pharmacy") &&
+                        y >= 4 &&
+                        y <= 11;
+
+                    bool industrial =
+                        buildingType == "industrial";
+
                     bool window =
-                        windowBand &&
-                        ((x * 31 + z * 17 + seed) & 3) == 0;
+                        !industrial &&
+                        ((storefront && (x + z + seed) % 3 != 0) ||
+                         (windowBand &&
+                          ((x * 31 + z * 17 + seed) & 3) == 0));
 
                     world.SetVoxelGlobal(
                         x,
                         y,
                         z,
                         window ? VoxelMaterial.ReinforcedGlass : wallMaterial
+                    );
+                }
+            }
+
+            // Roof parapet keeps silhouettes readable from street level.
+            for (int x = minX; x <= maxX; x++)
+            for (int z = minZ; z <= maxZ; z++)
+            {
+                bool perimeter =
+                    x == minX ||
+                    x == maxX ||
+                    z == minZ ||
+                    z == maxZ;
+
+                if (perimeter)
+                {
+                    world.SetVoxelGlobal(
+                        x,
+                        topY + 1,
+                        z,
+                        wallMaterial
                     );
                 }
             }
