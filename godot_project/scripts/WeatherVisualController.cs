@@ -92,7 +92,12 @@ namespace TerreZero.World.Weather
                 current.RelativeHumidityPercent,
                 current.TemperatureC
             );
-            ApplySun(cloud, isDay, current.Time);
+            ApplySun(
+                cloud,
+                isDay,
+                current.Time,
+                weather.Latitude
+            );
             ApplyOverlay(
                 rain,
                 snow,
@@ -215,31 +220,145 @@ namespace TerreZero.World.Weather
         private void ApplySun(
             float cloud,
             bool isDay,
-            string localTime)
+            string localTime,
+            double latitude)
         {
             if (_sun == null)
                 return;
 
-            float hour = ParseLocalHour(localTime);
+            if (!TryComputeSolarAngles(
+                    localTime,
+                    latitude,
+                    out float elevationDegrees,
+                    out float azimuthDegrees))
+            {
+                float hour = ParseLocalHour(localTime);
+                float fallbackDaylight = isDay
+                    ? Mathf.Clamp(
+                        Mathf.Sin((hour - 6f) / 12f * Mathf.Pi),
+                        0.15f,
+                        1f
+                    )
+                    : 0.06f;
+
+                elevationDegrees = Mathf.Lerp(
+                    8f,
+                    68f,
+                    fallbackDaylight
+                );
+                azimuthDegrees = Mathf.Lerp(
+                    70f,
+                    290f,
+                    Mathf.Clamp((hour - 6f) / 12f, 0f, 1f)
+                );
+            }
+
             float daylight = isDay
-                ? Mathf.Clamp(Mathf.Sin((hour - 6f) / 12f * Mathf.Pi), 0.15f, 1f)
-                : 0.06f;
+                ? Mathf.Clamp(
+                    Mathf.Sin(Mathf.DegToRad(
+                        Mathf.Clamp(elevationDegrees, 0f, 90f)
+                    )),
+                    0.08f,
+                    1f
+                )
+                : 0.04f;
 
             _sun.LightEnergy = isDay
-                ? Mathf.Lerp(0.45f, 1.75f, daylight) * Mathf.Lerp(1f, 0.58f, cloud)
-                : 0.08f;
+                ? Mathf.Lerp(0.35f, 1.85f, daylight) *
+                  Mathf.Lerp(1f, 0.58f, cloud)
+                : 0.07f;
+
+            float warmHorizon = 1f - Mathf.Clamp(
+                elevationDegrees / 32f,
+                0f,
+                1f
+            );
 
             _sun.LightColor = isDay
                 ? new Color(
                     1.0f,
-                    Mathf.Lerp(0.72f, 0.94f, daylight),
-                    Mathf.Lerp(0.58f, 0.86f, daylight)
+                    Mathf.Lerp(0.70f, 0.95f, 1f - warmHorizon),
+                    Mathf.Lerp(0.52f, 0.88f, 1f - warmHorizon)
                 )
                 : new Color(0.28f, 0.36f, 0.55f);
 
-            float sunPitch = Mathf.Lerp(-8f, -68f, daylight);
-            float sunYaw = Mathf.Lerp(-110f, 110f, Mathf.Clamp((hour - 6f) / 12f, 0f, 1f));
-            _sun.RotationDegrees = new Vector3(sunPitch, sunYaw, 0f);
+            float pitch = -Mathf.Clamp(
+                elevationDegrees,
+                3f,
+                89f
+            );
+
+            _sun.RotationDegrees = new Vector3(
+                pitch,
+                azimuthDegrees - 180f,
+                0f
+            );
+        }
+
+        private static bool TryComputeSolarAngles(
+            string localTime,
+            double latitude,
+            out float elevationDegrees,
+            out float azimuthDegrees)
+        {
+            elevationDegrees = 35f;
+            azimuthDegrees = 180f;
+
+            if (!DateTime.TryParse(
+                    localTime,
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.AssumeLocal,
+                    out DateTime local))
+            {
+                return false;
+            }
+
+            double latRad = latitude * Math.PI / 180.0;
+            int day = local.DayOfYear;
+
+            double declinationDeg =
+                23.44 *
+                Math.Sin(
+                    2.0 * Math.PI *
+                    (284.0 + day) /
+                    365.0
+                );
+
+            double declinationRad =
+                declinationDeg * Math.PI / 180.0;
+
+            double hour =
+                local.Hour +
+                local.Minute / 60.0 +
+                local.Second / 3600.0;
+
+            double hourAngleDeg =
+                15.0 * (hour - 12.0);
+            double hourAngleRad =
+                hourAngleDeg * Math.PI / 180.0;
+
+            double sinElevation =
+                Math.Sin(latRad) * Math.Sin(declinationRad) +
+                Math.Cos(latRad) * Math.Cos(declinationRad) *
+                Math.Cos(hourAngleRad);
+
+            double elevationRad = Math.Asin(
+                Math.Clamp(sinElevation, -1.0, 1.0)
+            );
+
+            double azimuthRad = Math.Atan2(
+                Math.Sin(hourAngleRad),
+                Math.Cos(hourAngleRad) * Math.Sin(latRad) -
+                Math.Tan(declinationRad) * Math.Cos(latRad)
+            );
+
+            double azimuthDeg =
+                (azimuthRad * 180.0 / Math.PI + 180.0) % 360.0;
+
+            elevationDegrees =
+                (float)(elevationRad * 180.0 / Math.PI);
+            azimuthDegrees = (float)azimuthDeg;
+            return true;
         }
 
         private void ApplyOverlay(
