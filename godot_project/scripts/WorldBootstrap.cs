@@ -663,6 +663,9 @@ namespace TerreZero.World
                 );
 
                 _weatherVisuals.Apply(weather);
+                _world?.SetSurfaceWetness(
+                    _weatherVisuals.CurrentSurfaceWetness
+                );
                 GD.Print(
                     $"[TERRE ZÉRO] météo réelle {weather.Current.TemperatureC:F1}°C " +
                     $"code={weather.Current.WeatherCode} nuages={weather.Current.CloudCoverPercent:F0}% " +
