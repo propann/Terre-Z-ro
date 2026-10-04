@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Threading.Tasks;
 using Godot;
 using TerreZero.Chimeres;
+using TerreZero.Bunker;
 using TerreZero.Gameplay;
 using TerreZero.Network;
 using TerreZero.UI;
@@ -66,6 +67,7 @@ namespace TerreZero.World
             _activeH3 = DemoH3Index;
 
             GlobalSaveStore.LoadAll();
+            BunkerSaveStore.Load();
 
             if (_battleUI != null)
             {
@@ -157,6 +159,7 @@ namespace TerreZero.World
             }
 
             GlobalSaveStore.SaveAll();
+            BunkerSaveStore.Save();
         }
 
         private async void OnStartConfirmed(double latitude, double longitude, int radiusKm)
