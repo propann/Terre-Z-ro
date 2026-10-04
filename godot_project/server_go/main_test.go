@@ -62,13 +62,13 @@ func TestWorldCellEndpointMemoryFallback(t *testing.T) {
 	}
 
 	body := recorder.Body.String()
-	if !strings.Contains(body, ""h3_index":"891fb466257ffff"") {
+	if !strings.Contains(body, "\"h3_index\":\"891fb466257ffff\"") {
 		t.Fatalf("missing H3 cell in response: %s", body)
 	}
-	if !strings.Contains(body, ""buildings":[]") {
+	if !strings.Contains(body, "\"buildings\":[]") {
 		t.Fatalf("expected empty buildings in memory fallback: %s", body)
 	}
-	if !strings.Contains(body, ""roads":[]") {
+	if !strings.Contains(body, "\"roads\":[]") {
 		t.Fatalf("expected empty roads in memory fallback: %s", body)
 	}
 }
