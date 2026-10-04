@@ -161,6 +161,50 @@ namespace TerreZero.World.Voxel
             };
         }
 
+        private static Color ApplyProceduralWeathering(
+            Color source,
+            VoxelMaterial material,
+            int[] pos)
+        {
+            bool weatherable = material is
+                VoxelMaterial.Concrete or
+                VoxelMaterial.Brick or
+                VoxelMaterial.Asphalt or
+                VoxelMaterial.Sidewalk or
+                VoxelMaterial.GrassOrganic or
+                VoxelMaterial.SteelBarricade;
+
+            if (!weatherable)
+                return source;
+
+            uint hash = unchecked(
+                (uint)(pos[0] * 73856093) ^
+                (uint)(pos[1] * 19349663) ^
+                (uint)(pos[2] * 83492791) ^
+                ((uint)material * 2654435761u)
+            );
+
+            float variation =
+                0.90f + ((hash & 255u) / 255f) * 0.14f;
+
+            bool groundSensitive =
+                material == VoxelMaterial.Concrete ||
+                material == VoxelMaterial.Brick ||
+                material == VoxelMaterial.SteelBarricade;
+
+            float groundGrime =
+                pos[1] <= 8 && groundSensitive ? 0.88f : 1.0f;
+
+            float factor = variation * groundGrime;
+
+            return new Color(
+                Mathf.Clamp(source.R * factor, 0f, 1f),
+                Mathf.Clamp(source.G * factor, 0f, 1f),
+                Mathf.Clamp(source.B * factor, 0f, 1f),
+                source.A
+            );
+        }
+
         private static Color ShadeFace(Color source, int axis, bool forward)
         {
             float shade = axis switch
