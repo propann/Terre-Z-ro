@@ -39,14 +39,76 @@ namespace TerreZero.World.Generation
                 normalizedContext.Contains("wood") ||
                 normalizedContext.Contains("natural");
 
-            int lampTarget = industrial ? 3 : natural ? 2 : 7;
-            int barrierTarget = industrial ? 10 : natural ? 2 : 5;
-            int debrisTarget = industrial ? 16 : natural ? 6 : 11;
-            int plantTarget = natural ? 28 : industrial ? 7 : 18;
-            int overgrowthTarget = natural ? 18 : industrial ? 5 : 12;
-            int wreckTarget = natural ? 1 : industrial ? 6 : 4;
-            int furnitureTarget = natural ? 2 : industrial ? 2 : 6;
-            int signTarget = natural ? 1 : industrial ? 4 : 4;
+            bool commercial =
+                normalizedContext.Contains("commercial") ||
+                normalizedContext.Contains("retail");
+
+            bool residential =
+                normalizedContext.Contains("residential");
+
+            int lampTarget = industrial
+                ? 3
+                : natural
+                    ? 2
+                    : commercial
+                        ? 10
+                        : 7;
+
+            int barrierTarget = industrial
+                ? 10
+                : natural
+                    ? 2
+                    : commercial
+                        ? 4
+                        : 5;
+
+            int debrisTarget = industrial
+                ? 16
+                : natural
+                    ? 6
+                    : commercial
+                        ? 9
+                        : 11;
+
+            int plantTarget = natural
+                ? 28
+                : industrial
+                    ? 7
+                    : residential
+                        ? 22
+                        : 16;
+
+            int overgrowthTarget = natural
+                ? 18
+                : industrial
+                    ? 5
+                    : residential
+                        ? 15
+                        : 10;
+
+            int wreckTarget = natural
+                ? 1
+                : industrial
+                    ? 6
+                    : residential
+                        ? 5
+                        : 3;
+
+            int furnitureTarget = natural
+                ? 2
+                : industrial
+                    ? 2
+                    : commercial
+                        ? 9
+                        : 5;
+
+            int signTarget = natural
+                ? 1
+                : industrial
+                    ? 4
+                    : commercial
+                        ? 8
+                        : 3;
 
             int lamps = 0;
             int barriers = 0;
