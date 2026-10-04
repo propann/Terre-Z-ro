@@ -58,7 +58,7 @@ namespace TerreZero.World.Weather
             ApplyOverlay(rain, snow, current.WindSpeedKmh, current.WindDirectionDeg);
 
             _hud?.SetWeather(
-                BuildWeatherLabel(current)
+                BuildWeatherLabel(current, weather.Source)
             );
         }
 
@@ -180,7 +180,9 @@ namespace TerreZero.World.Weather
             return 12f;
         }
 
-        private static string BuildWeatherLabel(WeatherCurrentPayload current)
+        private static string BuildWeatherLabel(
+            WeatherCurrentPayload current,
+            string source)
         {
             string condition = current.WeatherCode switch
             {
@@ -197,7 +199,11 @@ namespace TerreZero.World.Weather
                 _ => "VARIABLE"
             };
 
-            return $"{condition}  {current.TemperatureC:F0}°C  •  VENT {current.WindSpeedKmh:F0} KM/H";
+            string provider = string.IsNullOrWhiteSpace(source)
+                ? "MÉTÉO RÉELLE"
+                : source;
+
+            return $"{condition}  {current.TemperatureC:F0}°C  •  VENT {current.WindSpeedKmh:F0} KM/H  •  {provider}";
         }
     }
 }
