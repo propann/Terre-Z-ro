@@ -112,6 +112,21 @@ namespace TerreZero.Network
             }
         }
 
+        public static async Task SubscribeAsync(string h3Index)
+        {
+            if (_serverUri == null || string.IsNullOrWhiteSpace(h3Index))
+                return;
+
+            try
+            {
+                await EnsureConnectedAsync(h3Index);
+            }
+            catch (Exception ex)
+            {
+                GD.PrintErr($"[DELTA SYNC] abonnement impossible: {ex.Message}");
+            }
+        }
+
         public static int GetPendingDeltaCount()
         {
             lock (LocalEdits)
