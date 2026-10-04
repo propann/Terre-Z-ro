@@ -41,6 +41,7 @@ namespace TerreZero.World
         private Node3D _lootContainer;
         private Node3D _hazardContainer;
         private Node3D _urbanDecorContainer;
+        private Node3D _buildingSignContainer;
         private Node3D _player;
         private PlayerController _playerController;
         private StartLocationUI _startUI;
@@ -73,6 +74,12 @@ namespace TerreZero.World
                 Name = "UrbanDecorContainer"
             };
             AddChild(_urbanDecorContainer);
+
+            _buildingSignContainer = new Node3D
+            {
+                Name = "BuildingSignContainer"
+            };
+            AddChild(_buildingSignContainer);
             _chimereActorScene = GD.Load<PackedScene>("res://scenes/ChimereWorldActor.tscn");
             _player = GetNode<Node3D>("Player");
             _playerController = _player as PlayerController;
@@ -742,6 +749,12 @@ namespace TerreZero.World
             using var client = new WorldDataClient(WorldApiBaseUrl);
             WorldCellPayload cell = await client.GetCellAsync(_activeH3);
 
+            if (_buildingSignContainer != null)
+            {
+                foreach (Node child in _buildingSignContainer.GetChildren())
+                    child.QueueFree();
+            }
+
             var anchor = new GeoAnchor(AnchorLatitude, AnchorLongitude);
             int generatedBuildings = 0;
             int generatedRoads = 0;
@@ -794,6 +807,15 @@ namespace TerreZero.World
                         building.BuildingType,
                         building.Amenity,
                         building.OSMID
+                    );
+
+                    OSMBuildingSignDirector.AddSign(
+                        _buildingSignContainer,
+                        polygon,
+                        building.Name,
+                        building.BuildingType,
+                        building.Amenity,
+                        building.Shop
                     );
 
                     generatedBuildings++;
