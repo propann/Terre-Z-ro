@@ -141,15 +141,15 @@ namespace TerreZero.World.Voxel
             }
         }
 
-        private static StandardMaterial3D CreateVoxelMaterial()
+        private static ShaderMaterial CreateVoxelMaterial()
         {
-            return new StandardMaterial3D
+            var shader = GD.Load<Shader>(
+                "res://shaders/retro_voxel.gdshader"
+            );
+
+            return new ShaderMaterial
             {
-                VertexColorUseAsAlbedo = true,
-                Roughness = 0.82f,
-                Metallic = 0.08f,
-                CullMode = BaseMaterial3D.CullModeEnum.Back,
-                ShadingMode = BaseMaterial3D.ShadingModeEnum.PerPixel
+                Shader = shader
             };
         }
 
