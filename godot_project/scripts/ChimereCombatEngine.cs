@@ -93,13 +93,13 @@ namespace TerreZero.Chimeres
             );
         }
 
-        public CaptureResult AttemptCapture(
+        public static float CalculateCaptureChance(
             ChimereCombatant wild,
             ChimereCombatant active,
             float deviceQuality = 1f)
         {
-            if (wild.IsDefeated)
-                return new CaptureResult(false, 0f, "La Chimère est neutralisée : capture impossible.");
+            if (wild == null || active == null || wild.IsDefeated)
+                return 0f;
 
             float hpFactor = 1f - wild.CurrentHp / (float)Math.Max(1, wild.MaxHp);
             float stabilityFactor = 1f - wild.Stability / (float)Math.Max(1, wild.MaxStability);
@@ -125,7 +125,18 @@ namespace TerreZero.Chimeres
                 levelPenalty -
                 rarityPenalty;
 
-            chance = Mathf.Clamp(chance * deviceQuality, 0.05f, 0.95f);
+            return Mathf.Clamp(chance * deviceQuality, 0.05f, 0.95f);
+        }
+
+        public CaptureResult AttemptCapture(
+            ChimereCombatant wild,
+            ChimereCombatant active,
+            float deviceQuality = 1f)
+        {
+            if (wild.IsDefeated)
+                return new CaptureResult(false, 0f, "La Chimère est neutralisée : capture impossible.");
+
+            float chance = CalculateCaptureChance(wild, active, deviceQuality);
 
             bool success = _random.NextDouble() <= chance;
 
