@@ -57,6 +57,7 @@ namespace TerreZero.World.Voxel
 
         private readonly ushort[] _voxels = new ushort[Size * Size * Size];
         private readonly List<VoxelEdit> _pendingEdits = new();
+        private float _surfaceWetness;
 
         [Export] public string H3Index { get; set; } = "891fb466257ffff";
         [Export] public Vector3I ChunkCoord { get; set; } = Vector3I.Zero;
@@ -175,20 +176,25 @@ namespace TerreZero.World.Voxel
         public void RebuildMeshGreedy()
         {
             GreedyMesher.GenerateMesh(this);
+            ApplySurfaceWetness();
             IsDirty = false;
         }
 
         public void SetSurfaceWetness(float wetness)
         {
-            wetness = Mathf.Clamp(wetness, 0f, 1f);
+            _surfaceWetness = Mathf.Clamp(wetness, 0f, 1f);
+            ApplySurfaceWetness();
+        }
 
+        private void ApplySurfaceWetness()
+        {
             if (MeshInstance?.MaterialOverride is not StandardMaterial3D material)
                 return;
 
-            material.Roughness = Mathf.Lerp(0.82f, 0.24f, wetness);
-            material.Metallic = Mathf.Lerp(0.08f, 0.14f, wetness);
+            material.Roughness = Mathf.Lerp(0.82f, 0.24f, _surfaceWetness);
+            material.Metallic = Mathf.Lerp(0.08f, 0.14f, _surfaceWetness);
 
-            float darken = Mathf.Lerp(1.0f, 0.72f, wetness);
+            float darken = Mathf.Lerp(1.0f, 0.72f, _surfaceWetness);
             material.AlbedoColor = new Color(darken, darken, darken, 1f);
         }
 
