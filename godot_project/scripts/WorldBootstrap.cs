@@ -19,9 +19,16 @@ namespace TerreZero.World
 
         [Export] public bool UseRemoteWorldData { get; set; } = false;
         [Export] public string WorldApiBaseUrl { get; set; } = "http://127.0.0.1:8080";
-        [Export] public double AnchorLatitude { get; set; } = 45.0;
-        [Export] public double AnchorLongitude { get; set; } = 5.0;
-        [Export] public float MaxAcceptedGpsAccuracyMeters { get; set; } = 60f;
+        [Export] public bool LocationPermissionGranted { get; set; } = false;
+        [Export] public double MachineLatitude { get; set; } = 45.0;
+        [Export] public double MachineLongitude { get; set; } = 5.0;
+        [Export] public double SelectedStartLatitude { get; set; } = 45.0;
+        [Export] public double SelectedStartLongitude { get; set; } = 5.0;
+        [Export(PropertyHint.Enum, "5 km,10 km")]
+        public int StartRadiusKm { get; set; } = 10;
+
+        public double AnchorLatitude { get; private set; }
+        public double AnchorLongitude { get; private set; }
 
         private readonly ConcurrentQueue<VoxelDeltaEvent> _remoteDeltas = new();
 
@@ -30,7 +37,6 @@ namespace TerreZero.World
         private VoxelWorldGrid _world;
         private string _activeH3;
         private double _streamTimer;
-        private bool _switchingCell;
 
         public override async void _Ready()
         {
@@ -39,10 +45,9 @@ namespace TerreZero.World
             _activeH3 = DemoH3Index;
 
             DeltaSyncManager.RemoteDeltaReceived += OnRemoteDeltaReceived;
-            GeoLocationBridge.PositionChanged += OnGpsPositionChanged;
 
             if (UseRemoteWorldData)
-                await ResolveInitialCellAsync();
+                await ResolveDesktopStartAsync();
 
             await LoadActiveCellAsync(allowDemoFallback: true);
         }
@@ -63,78 +68,55 @@ namespace TerreZero.World
         public override void _ExitTree()
         {
             DeltaSyncManager.RemoteDeltaReceived -= OnRemoteDeltaReceived;
-            GeoLocationBridge.PositionChanged -= OnGpsPositionChanged;
         }
 
-        private async Task ResolveInitialCellAsync()
+        private async Task ResolveDesktopStartAsync()
         {
+            if (!LocationPermissionGranted)
+            {
+                GD.PushWarning(
+                    "[TERRE ZÉRO] localisation PC non autorisée : utilisation de la démo."
+                );
+                return;
+            }
+
+            if (StartRadiusKm != 5 && StartRadiusKm != 10)
+                StartRadiusKm = 10;
+
             try
             {
                 using var client = new WorldDataClient(WorldApiBaseUrl);
-                SpatialCellPayload resolved = await client.ResolveSpatialCellAsync(
-                    AnchorLatitude,
-                    AnchorLongitude
+                StartLocationResponse start = await client.ValidateStartLocationAsync(
+                    MachineLatitude,
+                    MachineLongitude,
+                    SelectedStartLatitude,
+                    SelectedStartLongitude,
+                    StartRadiusKm
                 );
 
-                if (!string.IsNullOrWhiteSpace(resolved.H3Index))
-                    _activeH3 = resolved.H3Index;
+                if (!start.Allowed)
+                {
+                    GD.PushWarning(
+                        $"[TERRE ZÉRO] point de départ refusé : {start.DistanceKm:F2} km " +
+                        $"du point machine, limite {start.RadiusKm:F0} km."
+                    );
+                    return;
+                }
+
+                _activeH3 = start.H3Index;
+                AnchorLatitude = start.Latitude;
+                AnchorLongitude = start.Longitude;
 
                 GD.Print(
-                    $"[TERRE ZÉRO] GPS {AnchorLatitude:F6},{AnchorLongitude:F6} → H3 {_activeH3}"
+                    $"[TERRE ZÉRO] départ PC validé à {start.DistanceKm:F2} km " +
+                    $"du point machine → H3 {_activeH3}"
                 );
             }
             catch (Exception ex)
             {
                 GD.PushWarning(
-                    $"[TERRE ZÉRO] GPS→H3 indisponible : {ex.Message}. Fallback {_activeH3}"
+                    $"[TERRE ZÉRO] validation du point de départ impossible : {ex.Message}"
                 );
-            }
-        }
-
-        private async void OnGpsPositionChanged(GeoPositionSample sample)
-        {
-            if (!UseRemoteWorldData || _switchingCell)
-                return;
-
-            if (sample.AccuracyMeters > 0 &&
-                sample.AccuracyMeters > MaxAcceptedGpsAccuracyMeters)
-                return;
-
-            _switchingCell = true;
-            try
-            {
-                using var client = new WorldDataClient(WorldApiBaseUrl);
-                SpatialCellPayload resolved = await client.ResolveSpatialCellAsync(
-                    sample.Latitude,
-                    sample.Longitude
-                );
-
-                if (string.IsNullOrWhiteSpace(resolved.H3Index))
-                    return;
-
-                AnchorLatitude = sample.Latitude;
-                AnchorLongitude = sample.Longitude;
-
-                if (resolved.H3Index == _activeH3)
-                    return;
-
-                string previous = _activeH3;
-                _activeH3 = resolved.H3Index;
-
-                GD.Print(
-                    $"[TERRE ZÉRO] changement cellule {previous} → {_activeH3}"
-                );
-
-                _world?.UnloadAllChunks();
-                await LoadActiveCellAsync(allowDemoFallback: false);
-            }
-            catch (Exception ex)
-            {
-                GD.PushWarning($"[TERRE ZÉRO] changement GPS/H3 impossible : {ex.Message}");
-            }
-            finally
-            {
-                _switchingCell = false;
             }
         }
 
