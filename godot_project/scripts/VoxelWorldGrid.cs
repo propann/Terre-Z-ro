@@ -190,6 +190,14 @@ namespace TerreZero.World.Voxel
             }
         }
 
+        public void UnloadAllChunks()
+        {
+            foreach (var chunk in _chunks.Values)
+                chunk.QueueFree();
+
+            _chunks.Clear();
+        }
+
         public static Vector3I WorldPositionToChunk(Vector3 worldPosition)
         {
             float chunkMeters = VoxelChunk.Size * VoxelChunk.VoxelScale;
