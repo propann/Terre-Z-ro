@@ -72,6 +72,23 @@ type parsedOSMCell struct {
 	Roads     []importedRoad
 }
 
+func ensureOSMCacheSchema(
+	ctx context.Context,
+	db *sql.DB,
+) error {
+	_, err := db.ExecContext(
+		ctx,
+		`CREATE TABLE IF NOT EXISTS osm_cell_cache (
+			h3_index VARCHAR(16) PRIMARY KEY,
+			fetched_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+			building_count INT NOT NULL DEFAULT 0,
+			road_count INT NOT NULL DEFAULT 0,
+			source VARCHAR(64) NOT NULL DEFAULT 'overpass'
+		)`,
+	)
+	return err
+}
+
 func (s *postgresStore) EnsureWorldCell(
 	ctx context.Context,
 	h3Index string,
