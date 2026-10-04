@@ -6,7 +6,7 @@ CREATE EXTENSION IF NOT EXISTS postgis;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 CREATE TABLE IF NOT EXISTS osm_buildings (
-    osm_id BIGINT PRIMARY KEY,
+    osm_id BIGINT NOT NULL,
     geom GEOMETRY(Polygon, 4326) NOT NULL,
     h3_index VARCHAR(16) NOT NULL,
     name VARCHAR(255),
@@ -18,18 +18,20 @@ CREATE TABLE IF NOT EXISTS osm_buildings (
     world_version INT NOT NULL DEFAULT 1,
     generator_version INT NOT NULL DEFAULT 4,
     generation_seed BIGINT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    PRIMARY KEY (osm_id, h3_index)
 );
 CREATE INDEX IF NOT EXISTS idx_buildings_geom ON osm_buildings USING GIST (geom);
 CREATE INDEX IF NOT EXISTS idx_buildings_h3 ON osm_buildings (h3_index);
 
 CREATE TABLE IF NOT EXISTS osm_roads (
-    osm_id BIGINT PRIMARY KEY,
+    osm_id BIGINT NOT NULL,
     geom GEOMETRY(LineString, 4326) NOT NULL,
     h3_index VARCHAR(16) NOT NULL,
     highway_type VARCHAR(64) NOT NULL,
     surface VARCHAR(64) DEFAULT 'asphalt',
-    lanes INT DEFAULT 2
+    lanes INT DEFAULT 2,
+    PRIMARY KEY (osm_id, h3_index)
 );
 CREATE INDEX IF NOT EXISTS idx_roads_geom ON osm_roads USING GIST (geom);
 CREATE INDEX IF NOT EXISTS idx_roads_h3 ON osm_roads (h3_index);
@@ -112,3 +114,16 @@ ALTER TABLE IF EXISTS osm_buildings
 
 ALTER TABLE IF EXISTS voxel_deltas
     ALTER COLUMN generator_version SET DEFAULT 4;
+
+
+-- OSM cache rows are cell-local. A way may legitimately intersect multiple
+-- H3 cells, so the cache key must include h3_index.
+ALTER TABLE IF EXISTS osm_buildings
+    DROP CONSTRAINT IF EXISTS osm_buildings_pkey;
+ALTER TABLE IF EXISTS osm_buildings
+    ADD PRIMARY KEY (osm_id, h3_index);
+
+ALTER TABLE IF EXISTS osm_roads
+    DROP CONSTRAINT IF EXISTS osm_roads_pkey;
+ALTER TABLE IF EXISTS osm_roads
+    ADD PRIMARY KEY (osm_id, h3_index);
