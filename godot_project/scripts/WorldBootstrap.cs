@@ -55,6 +55,7 @@ namespace TerreZero.World
         private ChimereWorldActor _activeEncounterActor;
         private VoxelWorldGrid _world;
         private string _activeH3;
+        private string _activeWorldContext = string.Empty;
         private double _streamTimer;
         private bool _startValidated;
         private bool _loadingStart;
@@ -500,6 +501,9 @@ namespace TerreZero.World
 
         private string ResolveEncounterContext()
         {
+            if (!string.IsNullOrWhiteSpace(_activeWorldContext))
+                return _activeWorldContext;
+
             if (string.IsNullOrWhiteSpace(_activeH3))
                 return "residential";
 
@@ -527,6 +531,7 @@ namespace TerreZero.World
         private async Task LoadActiveCellAsync(bool allowDemoFallback)
         {
             ExplorationState.DiscoverCell(_activeH3);
+            _activeWorldContext = string.Empty;
             _world = new VoxelWorldGrid(_container, _activeH3);
 
             bool generatedRemoteWorld = false;
@@ -784,6 +789,7 @@ namespace TerreZero.World
         {
             using var client = new WorldDataClient(WorldApiBaseUrl);
             WorldCellPayload cell = await client.GetCellAsync(_activeH3);
+            _activeWorldContext = DeriveWorldContext(cell);
 
             if (_buildingSignContainer != null)
             {
@@ -877,6 +883,84 @@ namespace TerreZero.World
             return true;
         }
 
+        private static string DeriveWorldContext(
+            WorldCellPayload cell)
+        {
+            if (cell == null)
+                return "residential urban";
+
+            int industrialBuildings = 0;
+            int commercialBuildings = 0;
+            int pedestrianRoads = 0;
+            int vehicleRoads = 0;
+
+            if (cell.Buildings != null)
+            {
+                foreach (var building in cell.Buildings)
+                {
+                    if (building == null)
+                        continue;
+
+                    string type =
+                        (building.BuildingType ?? string.Empty)
+                        .ToLowerInvariant();
+
+                    if (type == "industrial" ||
+                        type == "warehouse")
+                    {
+                        industrialBuildings++;
+                    }
+
+                    if (type == "retail" ||
+                        type == "commercial" ||
+                        !string.IsNullOrWhiteSpace(building.Shop))
+                    {
+                        commercialBuildings++;
+                    }
+                }
+            }
+
+            if (cell.Roads != null)
+            {
+                foreach (var road in cell.Roads)
+                {
+                    if (road == null)
+                        continue;
+
+                    string type =
+                        (road.HighwayType ?? string.Empty)
+                        .ToLowerInvariant();
+
+                    if (type is
+                        "footway" or
+                        "path" or
+                        "cycleway" or
+                        "pedestrian")
+                    {
+                        pedestrianRoads++;
+                    }
+                    else
+                    {
+                        vehicleRoads++;
+                    }
+                }
+            }
+
+            if (industrialBuildings > 0)
+                return "industrial urban";
+
+            if (commercialBuildings > 0)
+                return "urban commercial";
+
+            if (pedestrianRoads > vehicleRoads &&
+                (cell.Buildings?.Count ?? 0) < 4)
+            {
+                return "park natural";
+            }
+
+            return "residential urban";
+        }
+
         private async Task ReplayPersistentDeltasAsync()
         {
             using var client = new WorldDataClient(WorldApiBaseUrl);
@@ -899,6 +983,13 @@ namespace TerreZero.World
 
         private void GenerateDemoWorld()
         {
+            _activeWorldContext =
+                DemoBuildingType == "industrial"
+                    ? "industrial"
+                    : DemoAmenity == "pharmacy"
+                        ? "urban commercial"
+                        : "residential urban";
+
             var generation = OSMVoxelizer.VoxelizeBuilding(
                 _world,
                 new Rect2(
