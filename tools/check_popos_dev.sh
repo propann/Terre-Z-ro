@@ -25,6 +25,21 @@ check_cmd "dotnet" dotnet
 check_cmd "go" go
 check_cmd "python3" python3
 
+if command -v docker >/dev/null 2>&1; then
+  printf "OK   %-18s %s\n" "docker" "$(command -v docker)"
+  if docker compose version >/dev/null 2>&1; then
+    printf "OK   %-18s %s\n" "docker compose" "$(docker compose version --short 2>/dev/null || echo available)"
+    ok=$((ok+2))
+  else
+    printf "WARN %-18s %s\n" "docker compose" "Docker Compose plugin not available"
+    ok=$((ok+1))
+    warn=$((warn+1))
+  fi
+else
+  printf "WARN %-18s %s\n" "docker" "optional but recommended for local PostGIS/backend"
+  warn=$((warn+1))
+fi
+
 if command -v dotnet >/dev/null 2>&1; then
   printf "INFO dotnet             %s\n" "$(dotnet --version 2>/dev/null || true)"
 fi
