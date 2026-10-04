@@ -58,6 +58,7 @@ namespace TerreZero.World.Voxel
         private readonly ushort[] _voxels = new ushort[Size * Size * Size];
         private readonly List<VoxelEdit> _pendingEdits = new();
         private float _surfaceWetness;
+        private bool _xrayActive;
 
         [Export] public string H3Index { get; set; } = "891fb466257ffff";
         [Export] public Vector3I ChunkCoord { get; set; } = Vector3I.Zero;
@@ -186,16 +187,39 @@ namespace TerreZero.World.Voxel
             ApplySurfaceWetness();
         }
 
+        public void SetXrayActive(bool active)
+        {
+            _xrayActive = active;
+            ApplySurfaceWetness();
+        }
+
         private void ApplySurfaceWetness()
         {
             if (MeshInstance?.MaterialOverride is not StandardMaterial3D material)
                 return;
 
+            float darken = Mathf.Lerp(1.0f, 0.72f, _surfaceWetness);
+
+            if (_xrayActive)
+            {
+                material.Roughness = 0.22f;
+                material.Metallic = 0.28f;
+                material.AlbedoColor = new Color(
+                    darken * 0.72f,
+                    darken * 0.46f,
+                    darken * 0.20f,
+                    1f
+                );
+                material.EmissionEnabled = true;
+                material.Emission = new Color(0.97f, 0.45f, 0.09f);
+                material.EmissionEnergyMultiplier = 0.65f;
+                return;
+            }
+
             material.Roughness = Mathf.Lerp(0.82f, 0.24f, _surfaceWetness);
             material.Metallic = Mathf.Lerp(0.08f, 0.14f, _surfaceWetness);
-
-            float darken = Mathf.Lerp(1.0f, 0.72f, _surfaceWetness);
             material.AlbedoColor = new Color(darken, darken, darken, 1f);
+            material.EmissionEnabled = false;
         }
 
         public void SetStreamingActive(bool active)
