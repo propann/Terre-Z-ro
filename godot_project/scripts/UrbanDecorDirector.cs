@@ -6,7 +6,7 @@ namespace TerreZero.World.Generation
 {
     public static class UrbanDecorDirector
     {
-        private const int AttemptCount = 44;
+        private const int AttemptCount = 72;
         private const float RadiusMeters = 28f;
 
         public static void Populate(
@@ -42,7 +42,8 @@ namespace TerreZero.World.Generation
             int lampTarget = industrial ? 3 : natural ? 2 : 7;
             int barrierTarget = industrial ? 10 : natural ? 2 : 5;
             int debrisTarget = industrial ? 16 : natural ? 6 : 11;
-            int plantTarget = natural ? 22 : industrial ? 5 : 12;
+            int plantTarget = natural ? 28 : industrial ? 7 : 18;
+            int overgrowthTarget = natural ? 18 : industrial ? 5 : 12;
             int wreckTarget = natural ? 1 : industrial ? 6 : 4;
             int furnitureTarget = natural ? 2 : industrial ? 2 : 6;
             int signTarget = natural ? 1 : industrial ? 4 : 4;
@@ -51,6 +52,7 @@ namespace TerreZero.World.Generation
             int barriers = 0;
             int debris = 0;
             int plants = 0;
+            int overgrowth = 0;
             int wrecks = 0;
             int furniture = 0;
             int signs = 0;
@@ -150,6 +152,20 @@ namespace TerreZero.World.Generation
                         rng
                     );
                     debris++;
+                    continue;
+                }
+
+                if ((ground == VoxelMaterial.Sidewalk ||
+                     ground == VoxelMaterial.GrassOrganic) &&
+                    overgrowth < overgrowthTarget &&
+                    rng.NextFloat() > 0.46f)
+                {
+                    AddOvergrowthPatch(
+                        parent,
+                        position,
+                        rng
+                    );
+                    overgrowth++;
                     continue;
                 }
 
@@ -773,6 +789,79 @@ namespace TerreZero.World.Generation
                         metallic: 0.22f,
                         roughness: 0.88f
                     )
+                });
+            }
+        }
+
+        private static void AddOvergrowthPatch(
+            Node3D parent,
+            Vector3 position,
+            DeterministicRng rng)
+        {
+            var root = new UrbanWindActor
+            {
+                Name = "UrbanOvergrowth",
+                Position = position,
+                RotationDegrees = new Vector3(
+                    0f,
+                    rng.NextFloat() * 360f,
+                    0f
+                )
+            };
+            parent.AddChild(root);
+
+            var moss = MakeMaterial(
+                new Color(
+                    rng.NextRange(0.10f, 0.17f),
+                    rng.NextRange(0.24f, 0.34f),
+                    rng.NextRange(0.09f, 0.15f)
+                ),
+                metallic: 0f,
+                roughness: 0.98f
+            );
+
+            root.AddChild(new MeshInstance3D
+            {
+                Mesh = new PlaneMesh
+                {
+                    Size = new Vector2(
+                        rng.NextRange(0.50f, 1.25f),
+                        rng.NextRange(0.35f, 0.95f)
+                    )
+                },
+                Position = new Vector3(0f, 0.012f, 0f),
+                RotationDegrees = new Vector3(
+                    0f,
+                    rng.NextFloat() * 360f,
+                    0f
+                ),
+                MaterialOverride = moss
+            });
+
+            int shoots = 4 + rng.NextInt(0, 6);
+            for (int i = 0; i < shoots; i++)
+            {
+                float angle = rng.NextFloat() * Mathf.Tau;
+                float radius = rng.NextRange(0.05f, 0.42f);
+                float height = rng.NextRange(0.12f, 0.42f);
+
+                root.AddChild(new MeshInstance3D
+                {
+                    Mesh = new BoxMesh
+                    {
+                        Size = new Vector3(0.025f, height, 0.055f)
+                    },
+                    Position = new Vector3(
+                        Mathf.Cos(angle) * radius,
+                        height * 0.5f,
+                        Mathf.Sin(angle) * radius
+                    ),
+                    RotationDegrees = new Vector3(
+                        rng.NextRange(-14f, 14f),
+                        Mathf.RadToDeg(angle),
+                        rng.NextRange(-14f, 14f)
+                    ),
+                    MaterialOverride = moss
                 });
             }
         }
