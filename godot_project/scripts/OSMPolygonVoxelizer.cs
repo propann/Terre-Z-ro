@@ -40,7 +40,19 @@ namespace TerreZero.World.Generation
             var rng = new DeterministicRng((uint)seed);
 
             GenerateGround(world, minX, maxX, minZ, maxZ);
-            GenerateShell(world, footprintMeters, minX, maxX, minZ, maxZ, topY, wall, seed);
+            GenerateShell(
+                world,
+                footprintMeters,
+                minX,
+                maxX,
+                minZ,
+                maxZ,
+                topY,
+                wall,
+                seed,
+                buildingType,
+                amenityTag
+            );
             int rooms = GenerateInteriorPartitions(
                 world,
                 footprintMeters,
@@ -99,7 +111,9 @@ namespace TerreZero.World.Generation
             int maxZ,
             int topY,
             VoxelMaterial wall,
-            int seed)
+            int seed,
+            string buildingType,
+            string amenityTag)
         {
             for (int x = minX; x <= maxX; x++)
             for (int z = minZ; z <= maxZ; z++)
@@ -131,13 +145,48 @@ namespace TerreZero.World.Generation
 
                     int localFloorY = (y - 2) % FloorHeightVoxels;
                     bool windowBand = localFloorY >= 5 && localFloorY <= 10;
-                    bool window = windowBand && ((x * 31 + z * 17 + seed) & 3) == 0;
+                    bool storefront =
+                        (buildingType == "retail" || amenityTag == "pharmacy") &&
+                        y >= 4 &&
+                        y <= 11;
+                    bool industrial =
+                        buildingType == "industrial";
+
+                    bool window =
+                        !industrial &&
+                        ((storefront && (x + z + seed) % 3 != 0) ||
+                         (windowBand &&
+                          ((x * 31 + z * 17 + seed) & 3) == 0));
 
                     world.SetVoxelGlobal(
                         x,
                         y,
                         z,
                         window ? VoxelMaterial.ReinforcedGlass : wall
+                    );
+                }
+            }
+
+            // Roof parapet follows the real polygon perimeter.
+            for (int x = minX; x <= maxX; x++)
+            for (int z = minZ; z <= maxZ; z++)
+            {
+                if (!IsVoxelInside(polygon, x, z))
+                    continue;
+
+                bool perimeter =
+                    !IsVoxelInside(polygon, x + 1, z) ||
+                    !IsVoxelInside(polygon, x - 1, z) ||
+                    !IsVoxelInside(polygon, x, z + 1) ||
+                    !IsVoxelInside(polygon, x, z - 1);
+
+                if (perimeter)
+                {
+                    world.SetVoxelGlobal(
+                        x,
+                        topY + 1,
+                        z,
+                        wall
                     );
                 }
             }
