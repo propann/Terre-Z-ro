@@ -126,7 +126,15 @@ namespace TerreZero.World.Voxel
             Vector3 v2 = new Vector3(pos[0] + du[0] + dv[0], pos[1] + du[1] + dv[1], pos[2] + du[2] + dv[2]) * Scale;
             Vector3 v3 = new Vector3(pos[0] + dv[0], pos[1] + dv[1], pos[2] + dv[2]) * Scale;
 
-            Color color = ShadeFace(GetMaterialColor(mat), axis, forward);
+            Color color = ShadeFace(
+                ApplyProceduralWeathering(
+                    GetMaterialColor(mat),
+                    mat,
+                    pos
+                ),
+                axis,
+                forward
+            );
             st.SetColor(color);
 
             if (forward)
