@@ -59,6 +59,7 @@ namespace TerreZero.World.Voxel
         private readonly ushort[] _voxels = new ushort[Size * Size * Size];
         private readonly List<VoxelEdit> _pendingEdits = new();
         private float _surfaceWetness;
+        private float _snowCover;
         private bool _xrayActive;
 
         [Export] public string H3Index { get; set; } = "891fb466257ffff";
@@ -188,6 +189,12 @@ namespace TerreZero.World.Voxel
             ApplySurfaceWetness();
         }
 
+        public void SetSnowCover(float snowCover)
+        {
+            _snowCover = Mathf.Clamp(snowCover, 0f, 1f);
+            ApplySurfaceWetness();
+        }
+
         public void SetXrayActive(bool active)
         {
             _xrayActive = active;
@@ -200,6 +207,7 @@ namespace TerreZero.World.Voxel
                 return;
 
             material.SetShaderParameter("wetness", _surfaceWetness);
+            material.SetShaderParameter("snow_cover", _snowCover);
             material.SetShaderParameter("xray_mode", _xrayActive);
         }
 
