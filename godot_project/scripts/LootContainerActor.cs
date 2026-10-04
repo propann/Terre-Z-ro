@@ -20,7 +20,18 @@ namespace TerreZero.World
             EnsureVisuals();
             _label = GetNode<Label3D>("Label3D");
             BodyEntered += OnBodyEntered;
-            _label.Text = "CACHE // NON OUVERTE";
+
+            if (ExplorationState.IsLootOpened(SourceId))
+            {
+                _opened = true;
+                Monitoring = false;
+                _label.Text = "CACHE // VIDE";
+                Modulate = new Color(0.55f, 0.55f, 0.55f, 0.7f);
+            }
+            else
+            {
+                _label.Text = "CACHE // NON OUVERTE";
+            }
         }
 
         private void EnsureVisuals()
@@ -94,6 +105,7 @@ namespace TerreZero.World
                 ? $"CACHE RÉCUPÉRÉE // {added} OBJET(S)"
                 : "CACHE // INVENTAIRE PLEIN";
 
+            ExplorationState.MarkLootOpened(SourceId);
             GlobalSaveStore.SaveAll();
             Looted?.Invoke(this, bundle);
 
