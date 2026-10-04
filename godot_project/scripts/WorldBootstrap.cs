@@ -118,6 +118,50 @@ namespace TerreZero.World
             {
                 OpenTraining();
                 GetViewport().SetInputAsHandled();
+                return;
+            }
+
+            if (@event is InputEventKey key && key.Pressed && !key.Echo)
+            {
+                if (key.Keycode == Key.H)
+                {
+                    bool healed = GameplayProgressionService.TryUseMedGel();
+                    _hud?.SetHint(
+                        healed
+                            ? "SOIN : GEL MÉDICAL UTILISÉ"
+                            : "SOIN : AUCUN GEL MÉDICAL"
+                    );
+                    GlobalSaveStore.SaveAll();
+                    GetViewport().SetInputAsHandled();
+                    return;
+                }
+
+                if (key.Keycode == Key.F2)
+                {
+                    CraftingService.TryCraft(
+                        "capture_basic",
+                        atBunker: false,
+                        out string craftMessage
+                    );
+                    _hud?.SetHint($"CRAFT : {craftMessage}");
+                    GetViewport().SetInputAsHandled();
+                    return;
+                }
+
+                if (key.Keycode == Key.F3)
+                {
+                    BunkerService.TryBuildRefinery(out string bunkerMessage);
+                    _hud?.SetHint($"BUNKER : {bunkerMessage}");
+                    GetViewport().SetInputAsHandled();
+                    return;
+                }
+
+                if (key.Keycode == Key.F4)
+                {
+                    BunkerService.TryExpandStorage(out string storageMessage);
+                    _hud?.SetHint($"BUNKER : {storageMessage}");
+                    GetViewport().SetInputAsHandled();
+                }
             }
         }
 
@@ -330,7 +374,7 @@ namespace TerreZero.World
         {
             _hud?.Show();
             _hud?.SetSector(_activeH3);
-            _hud?.SetHint("CLIC G : EXTRAIRE • CLIC D : CONSTRUIRE • F : X-RAY • C : CHIMÈRE • T : DRESSAGE");
+            _hud?.SetHint("CLIC G : EXTRAIRE • CLIC D : CONSTRUIRE • F : X-RAY • C : CHIMÈRE • T : DRESSAGE • H : SOIN");
             _playerController?.SetGameplayEnabled(true);
         }
 
