@@ -297,6 +297,64 @@ namespace TerreZero.World.Generation
                 ApplyWetnessRecursive(child, wetness);
         }
 
+        public static void SetSnowCover(
+            Node3D parent,
+            float snowCover)
+        {
+            if (parent == null)
+                return;
+
+            float value = Mathf.Clamp(snowCover, 0f, 1f);
+
+            foreach (Node child in parent.GetChildren())
+                ApplySnowRecursive(child, value);
+        }
+
+        private static void ApplySnowRecursive(
+            Node node,
+            float snowCover)
+        {
+            if (node is MeshInstance3D mesh)
+            {
+                if (snowCover <= 0.02f)
+                {
+                    mesh.MaterialOverlay = null;
+                }
+                else
+                {
+                    var overlay =
+                        mesh.MaterialOverlay as StandardMaterial3D ??
+                        new StandardMaterial3D
+                        {
+                            Transparency =
+                                BaseMaterial3D.TransparencyEnum.Alpha,
+                            ShadingMode =
+                                BaseMaterial3D.ShadingModeEnum.PerPixel,
+                            Roughness = 0.96f,
+                            Metallic = 0f
+                        };
+
+                    float alpha = Mathf.Lerp(
+                        0f,
+                        0.68f,
+                        snowCover
+                    );
+
+                    overlay.AlbedoColor = new Color(
+                        0.88f,
+                        0.92f,
+                        0.95f,
+                        alpha
+                    );
+
+                    mesh.MaterialOverlay = overlay;
+                }
+            }
+
+            foreach (Node child in node.GetChildren())
+                ApplySnowRecursive(child, snowCover);
+        }
+
         public static void SetWind(
             Node3D parent,
             float speedKmh,
