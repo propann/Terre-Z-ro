@@ -1,9 +1,11 @@
-[gd_scene load_steps=8 format=3 uid="uid://b2847c928a9b"]
+[gd_scene load_steps=10 format=3 uid="uid://b2847c928a9b"]
 
 [ext_resource type="Script" path="res://scripts/WorldBootstrap.cs" id="1_bootstrap"]
 [ext_resource type="PackedScene" path="res://scenes/Player.tscn" id="2_player"]
 [ext_resource type="PackedScene" path="res://scenes/StartLocationUI.tscn" id="3_start"]
 [ext_resource type="PackedScene" path="res://scenes/GameHUD.tscn" id="4_hud"]
+[ext_resource type="PackedScene" path="res://scenes/ChimereBattleUI.tscn" id="5_battle"]
+[ext_resource type="PackedScene" path="res://scenes/ChimereTrainingUI.tscn" id="6_training"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_sky"]
 sky_top_color = Color(0.04, 0.08, 0.15, 1)
@@ -48,3 +50,9 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 1.8, -6)
 visible = false
 
 [node name="StartLocationUI" parent="." instance=ExtResource("3_start")]
+
+[node name="ChimereBattleUI" parent="." instance=ExtResource("5_battle")]
+visible = false
+
+[node name="ChimereTrainingUI" parent="." instance=ExtResource("6_training")]
+visible = false
