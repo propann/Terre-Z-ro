@@ -659,6 +659,12 @@ namespace TerreZero.World
                     _weatherVisuals.CurrentStormIntensity > 0.45f,
                     _weatherVisuals.CurrentStormIntensity
                 );
+
+                UrbanDecorDirector.SetWind(
+                    _urbanDecorContainer,
+                    _weatherVisuals.CurrentWindSpeedKmh,
+                    _weatherVisuals.CurrentWindDirectionDegrees
+                );
             }
         }
 
