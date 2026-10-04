@@ -17,7 +17,8 @@ namespace TerreZero.World.Voxel
         MedCache = 7,
         SteelBarricade = 8,
         TurretBase = 9,
-        GrassOrganic = 10
+        GrassOrganic = 10,
+        RoadMarking = 11
     }
 
     public readonly struct VoxelEdit
