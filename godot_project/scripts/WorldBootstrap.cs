@@ -672,6 +672,11 @@ namespace TerreZero.World
                     _weatherVisuals.CurrentWindSpeedKmh,
                     _weatherVisuals.CurrentWindDirectionDegrees
                 );
+
+                UrbanDecorDirector.SetWetness(
+                    _urbanDecorContainer,
+                    _weatherVisuals.CurrentSurfaceWetness
+                );
             }
         }
 
@@ -727,6 +732,11 @@ namespace TerreZero.World
                     _urbanDecorContainer,
                     _weatherVisuals.CurrentWindSpeedKmh,
                     _weatherVisuals.CurrentWindDirectionDegrees
+                );
+
+                UrbanDecorDirector.SetWetness(
+                    _urbanDecorContainer,
+                    _weatherVisuals.CurrentSurfaceWetness
                 );
 
                 GD.Print(
