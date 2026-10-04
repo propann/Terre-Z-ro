@@ -111,3 +111,82 @@ func TestResolveSpatialCellRejectsInvalidCoordinates(t *testing.T) {
 		t.Fatalf("expected status 400, got %d", recorder.Code)
 	}
 }
+
+
+func TestValidateStartLocation(t *testing.T) {
+	body := strings.NewReader(`{
+		"machine_latitude":45.75,
+		"machine_longitude":4.85,
+		"start_latitude":45.77,
+		"start_longitude":4.87,
+		"radius_km":5
+	}`)
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/api/v1/spatial/start",
+		body,
+	)
+	recorder := httptest.NewRecorder()
+
+	handleValidateStartLocation(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", recorder.Code, recorder.Body.String())
+	}
+
+	response := recorder.Body.String()
+	if !strings.Contains(response, "\"allowed\":true") {
+		t.Fatalf("expected start location to be allowed: %s", response)
+	}
+	if !strings.Contains(response, "\"h3_index\":") {
+		t.Fatalf("expected H3 index for allowed start: %s", response)
+	}
+}
+
+func TestRejectStartLocationOutsideRadius(t *testing.T) {
+	body := strings.NewReader(`{
+		"machine_latitude":45.75,
+		"machine_longitude":4.85,
+		"start_latitude":45.95,
+		"start_longitude":4.85,
+		"radius_km":10
+	}`)
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/api/v1/spatial/start",
+		body,
+	)
+	recorder := httptest.NewRecorder()
+
+	handleValidateStartLocation(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", recorder.Code)
+	}
+
+	if !strings.Contains(recorder.Body.String(), "\"allowed\":false") {
+		t.Fatalf("expected distant start location to be rejected: %s", recorder.Body.String())
+	}
+}
+
+func TestRejectUnsupportedStartRadius(t *testing.T) {
+	body := strings.NewReader(`{
+		"machine_latitude":45.75,
+		"machine_longitude":4.85,
+		"start_latitude":45.75,
+		"start_longitude":4.85,
+		"radius_km":7
+	}`)
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/api/v1/spatial/start",
+		body,
+	)
+	recorder := httptest.NewRecorder()
+
+	handleValidateStartLocation(recorder, request)
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400, got %d", recorder.Code)
+	}
+}
