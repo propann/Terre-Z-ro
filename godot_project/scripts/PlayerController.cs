@@ -232,13 +232,12 @@ namespace TerreZero.World.Voxel
             {
                 Transparency = BaseMaterial3D.TransparencyEnum.Alpha,
                 ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
-                AlbedoColor = new Color(0.98f, 0.58f, 0.12f, 0.16f),
                 EmissionEnabled = true,
-                Emission = new Color(0.98f, 0.48f, 0.08f),
                 EmissionEnergyMultiplier = 0.55f,
                 CullMode = BaseMaterial3D.CullModeEnum.Disabled
             };
 
+            UpdateHighlightMaterial();
             _blockHighlight.Visible = false;
         }
 
@@ -262,7 +261,12 @@ namespace TerreZero.World.Voxel
             }
 
             Vector3 collisionPoint = _rayCast.GetCollisionPoint();
-            Vector3 local = chunk.ToLocal(collisionPoint);
+            Vector3 collisionNormal = _rayCast.GetCollisionNormal();
+            Vector3 insidePoint =
+                collisionPoint -
+                collisionNormal * (VoxelChunk.VoxelScale * 0.05f);
+
+            Vector3 local = chunk.ToLocal(insidePoint);
 
             int vx = Mathf.FloorToInt(
                 local.X / VoxelChunk.VoxelScale
@@ -283,6 +287,27 @@ namespace TerreZero.World.Voxel
             _blockHighlight.GlobalPosition =
                 chunk.ToGlobal(centerLocal);
             _blockHighlight.Visible = true;
+        }
+
+        private void UpdateHighlightMaterial()
+        {
+            if (_blockHighlight?.MaterialOverride
+                is not StandardMaterial3D material)
+            {
+                return;
+            }
+
+            Color color = GreedyMesher.GetMaterialColor(
+                SelectedMaterial
+            );
+
+            material.AlbedoColor = new Color(
+                color.R,
+                color.G,
+                color.B,
+                0.18f
+            );
+            material.Emission = color.Lightened(0.15f);
         }
 
         private void CycleBuildMaterial(int direction)
@@ -309,6 +334,7 @@ namespace TerreZero.World.Voxel
                 index += buildPalette.Length;
 
             SelectedMaterial = buildPalette[index];
+            UpdateHighlightMaterial();
             MaterialChanged?.Invoke(SelectedMaterial);
         }
 
