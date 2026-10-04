@@ -11,6 +11,45 @@ using TerreZero.Network;
 
 namespace TerreZero.World.Generation
 {
+    public sealed class StartLocationRequest
+    {
+        [JsonPropertyName("machine_latitude")]
+        public double MachineLatitude { get; set; }
+
+        [JsonPropertyName("machine_longitude")]
+        public double MachineLongitude { get; set; }
+
+        [JsonPropertyName("start_latitude")]
+        public double StartLatitude { get; set; }
+
+        [JsonPropertyName("start_longitude")]
+        public double StartLongitude { get; set; }
+
+        [JsonPropertyName("radius_km")]
+        public double RadiusKm { get; set; }
+    }
+
+    public sealed class StartLocationResponse
+    {
+        [JsonPropertyName("allowed")]
+        public bool Allowed { get; set; }
+
+        [JsonPropertyName("distance_km")]
+        public double DistanceKm { get; set; }
+
+        [JsonPropertyName("radius_km")]
+        public double RadiusKm { get; set; }
+
+        [JsonPropertyName("h3_index")]
+        public string H3Index { get; set; } = string.Empty;
+
+        [JsonPropertyName("latitude")]
+        public double Latitude { get; set; }
+
+        [JsonPropertyName("longitude")]
+        public double Longitude { get; set; }
+    }
+
     public sealed class SpatialCellPayload
     {
         [JsonPropertyName("h3_index")]
@@ -163,6 +202,46 @@ namespace TerreZero.World.Generation
                 BaseAddress = new Uri(baseUrl.TrimEnd('/') + "/"),
                 Timeout = TimeSpan.FromSeconds(10)
             };
+        }
+
+        public async Task<StartLocationResponse> ValidateStartLocationAsync(
+            double machineLatitude,
+            double machineLongitude,
+            double startLatitude,
+            double startLongitude,
+            double radiusKm,
+            CancellationToken cancellationToken = default)
+        {
+            var request = new StartLocationRequest
+            {
+                MachineLatitude = machineLatitude,
+                MachineLongitude = machineLongitude,
+                StartLatitude = startLatitude,
+                StartLongitude = startLongitude,
+                RadiusKm = radiusKm
+            };
+
+            string json = JsonSerializer.Serialize(request);
+            using var content = new System.Net.Http.StringContent(
+                json,
+                System.Text.Encoding.UTF8,
+                "application/json"
+            );
+
+            using var response = await _http.PostAsync(
+                "api/v1/spatial/start",
+                content,
+                cancellationToken
+            );
+            response.EnsureSuccessStatusCode();
+
+            await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+            var payload = await JsonSerializer.DeserializeAsync<StartLocationResponse>(
+                stream,
+                cancellationToken: cancellationToken
+            );
+
+            return payload ?? new StartLocationResponse();
         }
 
         public async Task<SpatialCellPayload> ResolveSpatialCellAsync(
