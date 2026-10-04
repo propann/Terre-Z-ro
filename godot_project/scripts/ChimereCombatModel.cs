@@ -75,6 +75,7 @@ namespace TerreZero.Chimeres
         public int Stability { get; set; } = 100;
         public int Bond { get; set; }
         public int Training { get; set; }
+        public int EvolutionStage { get; set; }
         public ChimereStatus Status { get; set; }
         public string PassiveName { get; set; } = string.Empty;
         public string PassiveDescription { get; set; } = string.Empty;
@@ -103,6 +104,7 @@ namespace TerreZero.Chimeres
                 Stability = Stability,
                 Bond = Bond,
                 Training = Training,
+                EvolutionStage = EvolutionStage,
                 Status = Status,
                 PassiveName = PassiveName,
                 PassiveDescription = PassiveDescription
