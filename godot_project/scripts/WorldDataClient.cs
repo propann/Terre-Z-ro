@@ -154,11 +154,11 @@ namespace TerreZero.World.Generation
 
     public sealed class WorldDataClient : IDisposable
     {
-        private readonly HttpClient _http;
+        private readonly System.Net.Http.HttpClient _http;
 
         public WorldDataClient(string baseUrl)
         {
-            _http = new HttpClient
+            _http = new System.Net.Http.HttpClient
             {
                 BaseAddress = new Uri(baseUrl.TrimEnd('/') + "/"),
                 Timeout = TimeSpan.FromSeconds(10)
