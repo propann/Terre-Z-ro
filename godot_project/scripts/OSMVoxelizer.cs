@@ -23,7 +23,7 @@ namespace TerreZero.World.Generation
     public static class OSMVoxelizer
     {
         public const int WorldVersion = 1;
-        public const int GeneratorVersion = 3;
+        public const int GeneratorVersion = 4;
 
         private const int FloorHeightVoxels = 15;
         private const int DoorHeightVoxels = 10;
@@ -99,7 +99,10 @@ namespace TerreZero.World.Generation
         {
             for (int x = minX; x <= maxX; x++)
             for (int z = minZ; z <= maxZ; z++)
-                world.SetVoxelGlobal(x, 0, z, VoxelMaterial.Asphalt);
+            {
+                if (world.GetVoxelGlobal(x, 0, z) == VoxelMaterial.Air)
+                    world.SetVoxelGlobal(x, 0, z, VoxelMaterial.Sidewalk);
+            }
         }
 
         private static void GenerateShell(
