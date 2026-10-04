@@ -158,6 +158,9 @@ namespace TerreZero.World.Generation
         [JsonPropertyName("amenity")]
         public string Amenity { get; set; } = string.Empty;
 
+        [JsonPropertyName("shop")]
+        public string Shop { get; set; } = string.Empty;
+
         [JsonPropertyName("levels")]
         public int Levels { get; set; } = 2;
 
