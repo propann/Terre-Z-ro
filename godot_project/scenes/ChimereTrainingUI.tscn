@@ -88,6 +88,11 @@ unique_name_in_owner = true
 layout_mode = 2
 text = "INTENSIF  -3"
 
+[node name="Evolve" type="Button" parent="Panel/Root/Right"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "DÉCLENCHER L'ÉVOLUTION"
+
 [node name="Close" type="Button" parent="Panel/Root/Right"]
 unique_name_in_owner = true
 layout_mode = 2
