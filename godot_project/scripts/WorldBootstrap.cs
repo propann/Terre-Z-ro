@@ -40,6 +40,7 @@ namespace TerreZero.World
         private Node3D _chimereContainer;
         private Node3D _lootContainer;
         private Node3D _hazardContainer;
+        private Node3D _urbanDecorContainer;
         private Node3D _player;
         private PlayerController _playerController;
         private StartLocationUI _startUI;
@@ -67,6 +68,11 @@ namespace TerreZero.World
             AddChild(_lootContainer);
             _hazardContainer = new Node3D { Name = "HazardWorldContainer" };
             AddChild(_hazardContainer);
+            _urbanDecorContainer = new Node3D
+            {
+                Name = "UrbanDecorContainer"
+            };
+            AddChild(_urbanDecorContainer);
             _chimereActorScene = GD.Load<PackedScene>("res://scenes/ChimereWorldActor.tscn");
             _player = GetNode<Node3D>("Player");
             _playerController = _player as PlayerController;
@@ -540,6 +546,7 @@ namespace TerreZero.World
             SpawnWorldChimeres();
             SpawnLootCaches();
             SpawnRadiationHazards();
+            SpawnUrbanDecor();
         }
 
         private void SpawnWorldChimeres()
@@ -625,6 +632,24 @@ namespace TerreZero.World
                 );
 
             _hud?.SetHint($"LOOT : {summary}");
+        }
+
+        private void SpawnUrbanDecor()
+        {
+            if (_urbanDecorContainer == null ||
+                _world == null ||
+                _player == null)
+            {
+                return;
+            }
+
+            UrbanDecorDirector.Populate(
+                _urbanDecorContainer,
+                _world,
+                _activeH3,
+                _player.GlobalPosition,
+                ResolveEncounterContext()
+            );
         }
 
         private void SpawnRadiationHazards()
