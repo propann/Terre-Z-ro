@@ -172,7 +172,8 @@ namespace TerreZero.World.Voxel
                 VoxelMaterial.Asphalt or
                 VoxelMaterial.Sidewalk or
                 VoxelMaterial.GrassOrganic or
-                VoxelMaterial.SteelBarricade;
+                VoxelMaterial.SteelBarricade or
+                VoxelMaterial.RoadMarking;
 
             if (!weatherable)
                 return source;
@@ -235,6 +236,7 @@ namespace TerreZero.World.Voxel
             VoxelMaterial.SteelBarricade => new Color(0.21f, 0.30f, 0.35f),
             VoxelMaterial.TurretBase => new Color(0.58f, 0.34f, 0.14f),
             VoxelMaterial.GrassOrganic => new Color(0.19f, 0.36f, 0.22f),
+            VoxelMaterial.RoadMarking => new Color(0.78f, 0.74f, 0.58f),
             _ => Colors.White
         };
     }
