@@ -76,6 +76,22 @@ namespace TerreZero.Chimeres
 
         public ChimereCombatant FirstAvailable() =>
             _team.FirstOrDefault(c => !c.IsDefeated);
+
+        public void ReplaceAll(
+            IEnumerable<ChimereCombatant> team,
+            IEnumerable<ChimereCombatant> reserve)
+        {
+            _team.Clear();
+            _reserve.Clear();
+
+            if (team != null)
+                _team.AddRange(team.Take(MaxTeamSize));
+            if (reserve != null)
+                _reserve.AddRange(reserve);
+
+            if (_team.Count == 0)
+                _team.Add(ChimereSpeciesCatalog.CreateNebuli(3));
+        }
     }
 
     public static class ChimereGameState
