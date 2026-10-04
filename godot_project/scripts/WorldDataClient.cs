@@ -11,6 +11,21 @@ using TerreZero.Network;
 
 namespace TerreZero.World.Generation
 {
+    public sealed class SpatialCellPayload
+    {
+        [JsonPropertyName("h3_index")]
+        public string H3Index { get; set; } = string.Empty;
+
+        [JsonPropertyName("resolution")]
+        public int Resolution { get; set; }
+
+        [JsonPropertyName("latitude")]
+        public double Latitude { get; set; }
+
+        [JsonPropertyName("longitude")]
+        public double Longitude { get; set; }
+    }
+
     public sealed class WorldCellPayload
     {
         [JsonPropertyName("h3_index")]
@@ -147,6 +162,34 @@ namespace TerreZero.World.Generation
             {
                 BaseAddress = new Uri(baseUrl.TrimEnd('/') + "/"),
                 Timeout = TimeSpan.FromSeconds(10)
+            };
+        }
+
+        public async Task<SpatialCellPayload> ResolveSpatialCellAsync(
+            double latitude,
+            double longitude,
+            CancellationToken cancellationToken = default)
+        {
+            string lat = latitude.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            string lon = longitude.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+            using var response = await _http.GetAsync(
+                $"api/v1/spatial/cell?lat={Uri.EscapeDataString(lat)}&lon={Uri.EscapeDataString(lon)}",
+                cancellationToken
+            );
+            response.EnsureSuccessStatusCode();
+
+            await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+            var payload = await JsonSerializer.DeserializeAsync<SpatialCellPayload>(
+                stream,
+                cancellationToken: cancellationToken
+            );
+
+            return payload ?? new SpatialCellPayload
+            {
+                Latitude = latitude,
+                Longitude = longitude,
+                Resolution = 9
             };
         }
 
