@@ -1,6 +1,7 @@
 using System;
 using Godot;
 using TerreZero.Chimeres;
+using TerreZero.Gameplay;
 
 namespace TerreZero.UI
 {
@@ -33,6 +34,8 @@ namespace TerreZero.UI
         private ChimereCombatEngine _engine;
         private ChimereCombatant _wild;
         private ChimereCombatant _active;
+        private string _encounterContext = "field";
+        private int _battleSeed;
         private bool _busy;
 
         public override void _Ready()
@@ -86,13 +89,20 @@ namespace TerreZero.UI
             Visible = false;
         }
 
-        public void StartBattle(ChimereCombatant wild, int seed)
+        public void StartBattle(
+            ChimereCombatant wild,
+            int seed,
+            string encounterContext = "field")
         {
             _active = ChimereGameState.Roster.FirstAvailable();
             if (_active == null || wild == null)
                 return;
 
             _wild = wild.Clone();
+            _encounterContext = string.IsNullOrWhiteSpace(encounterContext)
+                ? "field"
+                : encounterContext;
+            _battleSeed = seed;
             _engine = new ChimereCombatEngine(seed);
             EncounterResolved = false;
             _busy = false;
@@ -169,21 +179,33 @@ namespace TerreZero.UI
             if (_busy || _wild == null || _active == null)
                 return;
 
-            if (ChimereGameState.CaptureModules <= 0)
+            if (!CaptureDeviceService.TrySelectBest(_wild, out var device))
             {
-                _log.Text = "Aucun module de capture disponible.";
+                _log.Text = "Aucun module de capture dans l'inventaire.";
                 return;
             }
 
-            ChimereGameState.CaptureModules--;
-            CaptureResult result = _engine.AttemptCapture(_wild, _active);
-            _log.Text = $"{result.Message}  ({result.Chance * 100f:F0} %)";
+            if (!CaptureDeviceService.Consume(device))
+            {
+                _log.Text = "Module de capture indisponible.";
+                return;
+            }
+
+            CaptureResult result = _engine.AttemptCapture(
+                _wild,
+                _active,
+                device.Quality
+            );
+
+            _log.Text =
+                $"{device.Name} : {result.Message}  ({result.Chance * 100f:F0} %)";
 
             if (result.Success)
             {
                 ChimereGameState.Roster.Capture(_wild);
                 _active.Bond = Math.Min(100, _active.Bond + 4);
-                ChimereSaveStore.Save();
+                GameplayProgressionService.RegisterCapture(_wild);
+                GlobalSaveStore.SaveAll();
                 EncounterResolved = true;
                 ChimereCaptured?.Invoke(_wild);
                 SetButtonsEnabled(false);
@@ -193,6 +215,7 @@ namespace TerreZero.UI
                 return;
             }
 
+            GlobalSaveStore.SaveAll();
             ExecuteEnemyTurn();
             Refresh();
         }
@@ -228,7 +251,12 @@ namespace TerreZero.UI
             int xp = 18 + _wild.Level * 9 + rarityBonus;
             bool levelUp = ChimereCombatEngine.GrantExperience(_active, xp);
             _active.Bond = Math.Min(100, _active.Bond + 2);
-            ChimereSaveStore.Save();
+            GameplayProgressionService.RegisterBattleVictory(
+                _wild,
+                _encounterContext,
+                _battleSeed
+            );
+            GlobalSaveStore.SaveAll();
             EncounterResolved = true;
 
             _log.Text =
@@ -296,38 +324,29 @@ namespace TerreZero.UI
             }
 
             float preview = PreviewCaptureChance();
-            _captureChance.Text =
-                $"CAPTURE {preview * 100f:F0}%  //  MODULES {ChimereGameState.CaptureModules}";
-            _capture.Disabled =
-                _wild.IsDefeated || ChimereGameState.CaptureModules <= 0;
+
+            if (CaptureDeviceService.TrySelectBest(_wild, out var selectedDevice))
+            {
+                _captureChance.Text =
+                    $"CAPTURE {preview * 100f:F0}%  //  {selectedDevice.Name.ToUpperInvariant()}  //  STOCK {CaptureDeviceService.TotalAvailable}";
+                _capture.Disabled = _wild.IsDefeated;
+            }
+            else
+            {
+                _captureChance.Text = "CAPTURE IMPOSSIBLE  //  AUCUN MODULE";
+                _capture.Disabled = true;
+            }
         }
 
         private float PreviewCaptureChance()
         {
-            float hpFactor =
-                1f - _wild.CurrentHp / (float)Math.Max(1, _wild.MaxHp);
-            float stabilityFactor =
-                1f - _wild.Stability / (float)Math.Max(1, _wild.MaxStability);
-            float statusBonus =
-                _wild.Status is ChimereStatus.Marked or ChimereStatus.Stunned
-                    ? 0.16f
-                    : 0f;
-            float roleBonus =
-                _active.Role == ChimereCombatRole.Capturer ? 0.12f : 0f;
-            float bondBonus = Math.Min(0.10f, _active.Bond / 1000f);
-            float levelPenalty =
-                Math.Max(0f, _wild.Level - _active.Level) * 0.025f;
+            if (!CaptureDeviceService.TrySelectBest(_wild, out var device))
+                return 0f;
 
-            return Mathf.Clamp(
-                0.08f +
-                hpFactor * 0.30f +
-                stabilityFactor * 0.38f +
-                statusBonus +
-                roleBonus +
-                bondBonus -
-                levelPenalty,
-                0.05f,
-                0.95f
+            return ChimereCombatEngine.CalculateCaptureChance(
+                _wild,
+                _active,
+                device.Quality
             );
         }
 
