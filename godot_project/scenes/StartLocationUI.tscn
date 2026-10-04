@@ -1,6 +1,7 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://scripts/StartLocationUI.cs" id="1_script"]
+[ext_resource type="Script" path="res://scripts/TacticalMapSurface.cs" id="2_map"]
 
 [sub_resource type="StyleBoxFlat" id="panel"]
 bg_color = Color(0.035, 0.05, 0.065, 0.96)
@@ -76,7 +77,7 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 0
 theme = SubResource("theme")
-script = ExtResource("1_script")
+script = ExtResource("2_map")
 
 [node name="Shade" type="ColorRect" parent="."]
 layout_mode = 1
