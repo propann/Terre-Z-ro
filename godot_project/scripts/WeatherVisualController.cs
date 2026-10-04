@@ -62,7 +62,13 @@ namespace TerreZero.World.Weather
 
             ApplyEnvironment(cloud, precipitation, isDay, current.WeatherCode);
             ApplySun(cloud, isDay, current.Time);
-            ApplyOverlay(rain, snow, current.WindSpeedKmh, current.WindDirectionDeg);
+            ApplyOverlay(
+                rain,
+                snow,
+                current.WindSpeedKmh,
+                current.WindDirectionDeg,
+                current.WeatherCode
+            );
 
             _hud?.SetWeather(
                 BuildWeatherLabel(current, weather.Source)
@@ -163,14 +169,16 @@ namespace TerreZero.World.Weather
             float rain,
             float snow,
             double windSpeedKmh,
-            double windDirectionDeg)
+            double windDirectionDeg,
+            int weatherCode)
         {
             if (_overlay == null)
                 return;
 
             float direction = Mathf.Sin(Mathf.DegToRad((float)windDirectionDeg));
             float strength = Mathf.Clamp((float)(windSpeedKmh / 45.0), 0f, 1f);
-            _overlay.Configure(rain, snow, direction * strength);
+            float storm = weatherCode >= 95 && weatherCode <= 99 ? 1f : 0f;
+            _overlay.Configure(rain, snow, direction * strength, storm);
         }
 
         private static float ParseLocalHour(string time)
