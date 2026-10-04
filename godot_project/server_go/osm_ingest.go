@@ -489,9 +489,8 @@ func (s *postgresStore) replaceOSMCell(
 				ST_SetSRID(ST_GeomFromGeoJSON($2), 4326),
 				$3,$4,$5,$6,$7,$8,$9,$10,$11,$12
 			)
-			ON CONFLICT (osm_id) DO UPDATE SET
+			ON CONFLICT (osm_id, h3_index) DO UPDATE SET
 				geom = EXCLUDED.geom,
-				h3_index = EXCLUDED.h3_index,
 				name = EXCLUDED.name,
 				building_type = EXCLUDED.building_type,
 				amenity = EXCLUDED.amenity,
@@ -529,9 +528,8 @@ func (s *postgresStore) replaceOSMCell(
 				ST_SetSRID(ST_GeomFromGeoJSON($2), 4326),
 				$3,$4,$5,$6
 			)
-			ON CONFLICT (osm_id) DO UPDATE SET
+			ON CONFLICT (osm_id, h3_index) DO UPDATE SET
 				geom = EXCLUDED.geom,
-				h3_index = EXCLUDED.h3_index,
 				highway_type = EXCLUDED.highway_type,
 				surface = EXCLUDED.surface,
 				lanes = EXCLUDED.lanes`,
