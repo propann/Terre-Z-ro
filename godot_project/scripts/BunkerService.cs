@@ -37,6 +37,7 @@ namespace TerreZero.Bunker
             State.Energy += 10;
             message = "Raffinerie opérationnelle.";
             GlobalSaveStore.SaveAll();
+            BunkerSaveStore.Save();
             return true;
         }
 
@@ -58,6 +59,7 @@ namespace TerreZero.Bunker
             State.Level++;
             message = "Zone de dressage opérationnelle.";
             GlobalSaveStore.SaveAll();
+            BunkerSaveStore.Save();
             return true;
         }
 
@@ -79,6 +81,7 @@ namespace TerreZero.Bunker
             State.Level++;
             message = "Infirmerie opérationnelle.";
             GlobalSaveStore.SaveAll();
+            BunkerSaveStore.Save();
             return true;
         }
 
@@ -94,6 +97,7 @@ namespace TerreZero.Bunker
             GameState.Inventory.MaxWeightKg += 12f;
             message = "Capacité de transport augmentée de 12 kg.";
             GlobalSaveStore.SaveAll();
+            BunkerSaveStore.Save();
             return true;
         }
 
@@ -121,6 +125,7 @@ namespace TerreZero.Bunker
 
             message = $"Raffinage : -{use} ferraille, +{copper} cuivre, +{circuits} circuit(s).";
             GlobalSaveStore.SaveAll();
+            BunkerSaveStore.Save();
             return true;
         }
 
