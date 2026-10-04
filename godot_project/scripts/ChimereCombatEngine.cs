@@ -22,6 +22,7 @@ namespace TerreZero.Chimeres
 
             float variance = 0.90f + (float)_random.NextDouble() * 0.20f;
             float levelFactor = 1f + Math.Max(0, attacker.Level - defender.Level) * 0.025f;
+            float affinityFactor = GetAffinityMultiplier(attacker.Affinity, defender.Affinity);
 
             int hpDamage = 0;
             int stabilityDamage = 0;
@@ -35,6 +36,7 @@ namespace TerreZero.Chimeres
                             (move.Power + attacker.Attack * 0.70f - defender.Defense * 0.35f)
                             * variance
                             * levelFactor
+                            * affinityFactor
                         )
                     );
                     stabilityDamage = Math.Max(2, move.StabilityPower);
@@ -150,6 +152,61 @@ namespace TerreZero.Chimeres
             }
 
             return leveled;
+        }
+
+        public static bool TryEvolve(ChimereCombatant chimere)
+        {
+            if (chimere == null || chimere.EvolutionStage >= 2)
+                return false;
+
+            int requiredLevel = chimere.EvolutionStage == 0 ? 6 : 12;
+            int requiredBond = chimere.EvolutionStage == 0 ? 25 : 60;
+            int requiredTraining = chimere.EvolutionStage == 0 ? 18 : 45;
+
+            if (chimere.Level < requiredLevel ||
+                chimere.Bond < requiredBond ||
+                chimere.Training < requiredTraining)
+                return false;
+
+            chimere.EvolutionStage++;
+            chimere.MaxHp += chimere.EvolutionStage == 1 ? 18 : 30;
+            chimere.CurrentHp = chimere.MaxHp;
+            chimere.Attack += chimere.EvolutionStage == 1 ? 5 : 8;
+            chimere.Defense += chimere.EvolutionStage == 1 ? 4 : 7;
+            chimere.Speed += 2;
+            chimere.MaxStability += chimere.EvolutionStage == 1 ? 8 : 12;
+            chimere.Stability = chimere.MaxStability;
+
+            chimere.Name = chimere.SpeciesId switch
+            {
+                "mordrail" => chimere.EvolutionStage == 1 ? "Mordrail Prime" : "Mordrail Titan",
+                "nebuli" => chimere.EvolutionStage == 1 ? "Nébuli Synapse" : "Nébuli Astral",
+                "cerf_ecorce" => chimere.EvolutionStage == 1 ? "Cerf Bastion" : "Cerf-Monde",
+                _ => chimere.Name
+            };
+
+            return true;
+        }
+
+        private static float GetAffinityMultiplier(
+            ChimereAffinity attacker,
+            ChimereAffinity defender)
+        {
+            if (attacker == defender)
+                return 0.90f;
+
+            return (attacker, defender) switch
+            {
+                (ChimereAffinity.Electric, ChimereAffinity.Hydro) => 1.25f,
+                (ChimereAffinity.Hydro, ChimereAffinity.Thermal) => 1.25f,
+                (ChimereAffinity.Thermal, ChimereAffinity.Organic) => 1.25f,
+                (ChimereAffinity.Organic, ChimereAffinity.Mineral) => 1.20f,
+                (ChimereAffinity.Mineral, ChimereAffinity.Scrap) => 1.20f,
+                (ChimereAffinity.Spectral, ChimereAffinity.Unstable) => 1.25f,
+                (ChimereAffinity.Radiant, ChimereAffinity.Spectral) => 1.25f,
+                (ChimereAffinity.Toxic, ChimereAffinity.Organic) => 1.20f,
+                _ => 1.0f
+            };
         }
 
         public static void Train(ChimereCombatant chimere, int intensity = 1)
