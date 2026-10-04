@@ -110,6 +110,7 @@ namespace TerreZero.World.Voxel
                 chunk.AddChild(mi);
             }
             chunk.MeshInstance.Mesh = arrayMesh;
+            chunk.MeshInstance.MaterialOverride ??= CreateVoxelMaterial();
 
             // Recalcul Collision Trimesh
             if (chunk.CollisionShape != null)
@@ -125,7 +126,7 @@ namespace TerreZero.World.Voxel
             Vector3 v2 = new Vector3(pos[0] + du[0] + dv[0], pos[1] + du[1] + dv[1], pos[2] + du[2] + dv[2]) * Scale;
             Vector3 v3 = new Vector3(pos[0] + dv[0], pos[1] + dv[1], pos[2] + dv[2]) * Scale;
 
-            Color color = GetMaterialColor(mat);
+            Color color = ShadeFace(GetMaterialColor(mat), axis, forward);
             st.SetColor(color);
 
             if (forward)
@@ -140,18 +141,48 @@ namespace TerreZero.World.Voxel
             }
         }
 
+        private static StandardMaterial3D CreateVoxelMaterial()
+        {
+            return new StandardMaterial3D
+            {
+                VertexColorUseAsAlbedo = true,
+                Roughness = 0.82f,
+                Metallic = 0.08f,
+                CullMode = BaseMaterial3D.CullModeEnum.Back,
+                ShadingMode = BaseMaterial3D.ShadingModeEnum.PerPixel
+            };
+        }
+
+        private static Color ShadeFace(Color source, int axis, bool forward)
+        {
+            float shade = axis switch
+            {
+                1 when forward => 1.08f,
+                1 => 0.72f,
+                0 => 0.90f,
+                _ => 0.82f
+            };
+
+            return new Color(
+                Mathf.Clamp(source.R * shade, 0f, 1f),
+                Mathf.Clamp(source.G * shade, 0f, 1f),
+                Mathf.Clamp(source.B * shade, 0f, 1f),
+                source.A
+            );
+        }
+
         public static Color GetMaterialColor(VoxelMaterial mat) => mat switch
         {
-            VoxelMaterial.Concrete => new Color(0.28f, 0.33f, 0.41f),
-            VoxelMaterial.Brick => new Color(0.70f, 0.32f, 0.04f),
-            VoxelMaterial.Asphalt => new Color(0.12f, 0.16f, 0.23f),
-            VoxelMaterial.Sidewalk => new Color(0.39f, 0.45f, 0.55f),
-            VoxelMaterial.ReinforcedGlass => new Color(0.22f, 0.74f, 0.97f, 0.8f),
-            VoxelMaterial.CopperWiring => new Color(0.97f, 0.45f, 0.09f),
-            VoxelMaterial.MedCache => new Color(0.06f, 0.72f, 0.51f),
-            VoxelMaterial.SteelBarricade => new Color(0.01f, 0.52f, 0.78f),
-            VoxelMaterial.TurretBase => new Color(0.85f, 0.47f, 0.02f),
-            VoxelMaterial.GrassOrganic => new Color(0.02f, 0.47f, 0.34f),
+            VoxelMaterial.Concrete => new Color(0.36f, 0.39f, 0.40f),
+            VoxelMaterial.Brick => new Color(0.49f, 0.23f, 0.16f),
+            VoxelMaterial.Asphalt => new Color(0.105f, 0.115f, 0.125f),
+            VoxelMaterial.Sidewalk => new Color(0.49f, 0.48f, 0.44f),
+            VoxelMaterial.ReinforcedGlass => new Color(0.20f, 0.47f, 0.56f, 0.92f),
+            VoxelMaterial.CopperWiring => new Color(0.73f, 0.34f, 0.13f),
+            VoxelMaterial.MedCache => new Color(0.16f, 0.64f, 0.44f),
+            VoxelMaterial.SteelBarricade => new Color(0.21f, 0.30f, 0.35f),
+            VoxelMaterial.TurretBase => new Color(0.58f, 0.34f, 0.14f),
+            VoxelMaterial.GrassOrganic => new Color(0.19f, 0.36f, 0.22f),
             _ => Colors.White
         };
     }
