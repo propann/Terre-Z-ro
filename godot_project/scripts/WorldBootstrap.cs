@@ -24,13 +24,42 @@ namespace TerreZero.World
         private readonly ConcurrentQueue<VoxelDeltaEvent> _remoteDeltas = new();
         private VoxelWorldGrid _world;
         private Node3D _player;
+        private string _activeH3;
         private double _streamTimer;
 
         public override async void _Ready()
         {
             var container = GetNode<Node3D>("VoxelWorldContainer");
             _player = GetNode<Node3D>("Player");
-            _world = new VoxelWorldGrid(container, DemoH3Index);
+            _activeH3 = DemoH3Index;
+
+            if (UseRemoteWorldData)
+            {
+                try
+                {
+                    using var spatialClient = new WorldDataClient(WorldApiBaseUrl);
+                    SpatialCellPayload resolved = await spatialClient.ResolveSpatialCellAsync(
+                        AnchorLatitude,
+                        AnchorLongitude
+                    );
+
+                    if (!string.IsNullOrWhiteSpace(resolved.H3Index))
+                        _activeH3 = resolved.H3Index;
+
+                    GD.Print(
+                        $"[TERRE ZÉRO] GPS {AnchorLatitude:F6},{AnchorLongitude:F6} → H3 {_activeH3}"
+                    );
+                }
+                catch (Exception ex)
+                {
+                    GD.PushWarning(
+                        $"[TERRE ZÉRO] GPS→H3 indisponible : {ex.Message}. " +
+                        $"Fallback {_activeH3}"
+                    );
+                }
+            }
+
+            _world = new VoxelWorldGrid(container, _activeH3);
 
             bool generatedRemoteWorld = false;
 
@@ -89,7 +118,7 @@ namespace TerreZero.World
         private async System.Threading.Tasks.Task<bool> GenerateRemoteWorldAsync()
         {
             using var client = new WorldDataClient(WorldApiBaseUrl);
-            WorldCellPayload cell = await client.GetCellAsync(DemoH3Index);
+            WorldCellPayload cell = await client.GetCellAsync(_activeH3);
 
             if (cell.Buildings == null || cell.Buildings.Count == 0)
                 return false;
@@ -155,7 +184,7 @@ namespace TerreZero.World
             _world.RebuildDirtyChunks();
 
             GD.Print(
-                $"[TERRE ZÉRO] cellule réelle {DemoH3Index} : " +
+                $"[TERRE ZÉRO] cellule réelle {_activeH3} : " +
                 $"{generated} bâtiments, {cell.Roads?.Count ?? 0} routes, " +
                 $"{_world.LoadedChunkCount} chunks"
             );
@@ -166,7 +195,7 @@ namespace TerreZero.World
         private async System.Threading.Tasks.Task ReplayPersistentDeltasAsync()
         {
             using var client = new WorldDataClient(WorldApiBaseUrl);
-            CellDeltaPayload history = await client.GetDeltasAsync(DemoH3Index);
+            CellDeltaPayload history = await client.GetDeltasAsync(_activeH3);
 
             int applied = 0;
             foreach (var delta in history.Deltas)
@@ -182,7 +211,7 @@ namespace TerreZero.World
                 _world.RebuildDirtyChunks();
 
             GD.Print(
-                $"[TERRE ZÉRO] deltas persistants rejoués h3={DemoH3Index} count={applied}"
+                $"[TERRE ZÉRO] deltas persistants rejoués h3={_activeH3} count={applied}"
             );
         }
 
@@ -201,7 +230,7 @@ namespace TerreZero.World
             );
 
             GD.Print(
-                $"[TERRE ZÉRO] démo h3={DemoH3Index} " +
+                $"[TERRE ZÉRO] démo h3={_activeH3} " +
                 $"osm={DemoOsmId} seed={generation.Seed} " +
                 $"étages={generation.Floors} pièces={generation.Rooms} " +
                 $"chunks={generation.TouchedChunks}"
@@ -215,7 +244,7 @@ namespace TerreZero.World
 
         private void ApplyRemoteDelta(VoxelDeltaEvent delta)
         {
-            if (_world == null || delta.H3Index != DemoH3Index)
+            if (_world == null || delta.H3Index != _activeH3)
                 return;
 
             if (delta.ChunkCoords == null || delta.ChunkCoords.Length != 3 ||
@@ -243,7 +272,7 @@ namespace TerreZero.World
 
         private bool ApplyDelta(VoxelDeltaEvent delta, bool rebuildImmediately)
         {
-            if (_world == null || delta.H3Index != DemoH3Index)
+            if (_world == null || delta.H3Index != _activeH3)
                 return false;
 
             if (delta.WorldVersion != OSMVoxelizer.WorldVersion ||
