@@ -94,3 +94,13 @@ CREATE TABLE IF NOT EXISTS chimeres (
     assigned_role VARCHAR(32) DEFAULT 'None',
     captured_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+
+-- Generator v4 migration defaults.
+-- Existing v3 rows are preserved intentionally; only newly inserted rows
+-- should inherit the current deterministic generator version.
+ALTER TABLE IF EXISTS osm_buildings
+    ALTER COLUMN generator_version SET DEFAULT 4;
+
+ALTER TABLE IF EXISTS voxel_deltas
+    ALTER COLUMN generator_version SET DEFAULT 4;
