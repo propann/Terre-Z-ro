@@ -10,12 +10,18 @@ namespace TerreZero.World.Voxel
         [Export] public float JumpVelocity = 4.5f;
         [Export] public float MouseSensitivity = 0.003f;
         [Export] public float MineReach = 5.0f;
+        [Export] public float BaseFov = 75.0f;
+        [Export] public float SprintFov = 82.0f;
+        [Export] public float HeadBobAmplitude = 0.035f;
+        [Export] public float HeadBobFrequency = 10.0f;
         [Export] public string PlayerId = "local-player";
         [Export] public string ServerWebSocketUrl = "ws://127.0.0.1:8080/ws/spatial";
 
         private Camera3D _camera;
         private RayCast3D _rayCast;
         private MeshInstance3D _blockHighlight;
+        private Vector3 _cameraBasePosition;
+        private float _headBobPhase;
 
         public VoxelMaterial SelectedMaterial { get; set; } = VoxelMaterial.SteelBarricade;
         public bool IsXrayActive { get; set; }
@@ -42,6 +48,8 @@ namespace TerreZero.World.Voxel
             _camera = GetNode<Camera3D>("Camera3D");
             _rayCast = GetNode<RayCast3D>("Camera3D/RayCast3D");
             _blockHighlight = GetNodeOrNull<MeshInstance3D>("BlockHighlight");
+            _cameraBasePosition = _camera.Position;
+            _camera.Fov = BaseFov;
             _rayCast.TargetPosition = new Vector3(0, 0, -MineReach);
 
             DeltaSyncManager.Configure(ServerWebSocketUrl, PlayerId);
@@ -115,7 +123,84 @@ namespace TerreZero.World.Voxel
 
             Velocity = velocity;
             MoveAndSlide();
+            UpdateCameraMotion(delta);
             ProcessVoxelInteraction();
+        }
+
+        private void UpdateCameraMotion(double delta)
+        {
+            if (_camera == null)
+                return;
+
+            Vector2 planarVelocity = new(
+                Velocity.X,
+                Velocity.Z
+            );
+            float speed = planarVelocity.Length();
+
+            bool moving =
+                IsOnFloor() &&
+                speed > 0.15f;
+
+            if (moving)
+            {
+                float speedFactor = Mathf.Clamp(
+                    speed / Math.Max(0.01f, Speed),
+                    0.45f,
+                    1.35f
+                );
+
+                _headBobPhase +=
+                    (float)delta *
+                    HeadBobFrequency *
+                    speedFactor;
+            }
+            else
+            {
+                _headBobPhase = Mathf.Lerp(
+                    _headBobPhase,
+                    0f,
+                    (float)delta * 5f
+                );
+            }
+
+            float bobY = moving
+                ? Mathf.Sin(_headBobPhase) *
+                  HeadBobAmplitude
+                : 0f;
+
+            float bobX = moving
+                ? Mathf.Cos(_headBobPhase * 0.5f) *
+                  HeadBobAmplitude *
+                  0.45f
+                : 0f;
+
+            Vector3 targetPosition =
+                _cameraBasePosition +
+                new Vector3(bobX, bobY, 0f);
+
+            _camera.Position = _camera.Position.Lerp(
+                targetPosition,
+                Mathf.Clamp((float)delta * 12f, 0f, 1f)
+            );
+
+            float speedRatio = Mathf.Clamp(
+                (speed - 5f) / 3f,
+                0f,
+                1f
+            );
+
+            float targetFov = Mathf.Lerp(
+                BaseFov,
+                SprintFov,
+                speedRatio
+            );
+
+            _camera.Fov = Mathf.Lerp(
+                _camera.Fov,
+                targetFov,
+                Mathf.Clamp((float)delta * 7f, 0f, 1f)
+            );
         }
 
         private void ProcessVoxelInteraction()
