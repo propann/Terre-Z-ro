@@ -53,6 +53,8 @@ namespace TerreZero.World
             _activeH3 = DemoH3Index;
 
             DeltaSyncManager.RemoteDeltaReceived += OnRemoteDeltaReceived;
+            if (_playerController != null)
+                _playerController.ScannerChanged += OnScannerChanged;
 
             if (UseRemoteWorldData && _startUI != null)
             {
@@ -87,6 +89,8 @@ namespace TerreZero.World
         public override void _ExitTree()
         {
             DeltaSyncManager.RemoteDeltaReceived -= OnRemoteDeltaReceived;
+            if (_playerController != null)
+                _playerController.ScannerChanged -= OnScannerChanged;
 
             if (_startUI != null)
                 _startUI.StartConfirmed -= OnStartConfirmed;
@@ -331,6 +335,11 @@ namespace TerreZero.World
                 $"étages={generation.Floors} pièces={generation.Rooms} " +
                 $"chunks={generation.TouchedChunks}"
             );
+        }
+
+        private void OnScannerChanged(bool active)
+        {
+            _hud?.SetScanner(active);
         }
 
         private void OnRemoteDeltaReceived(VoxelDeltaEvent delta)
