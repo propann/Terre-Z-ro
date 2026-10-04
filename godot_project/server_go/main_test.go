@@ -72,3 +72,42 @@ func TestWorldCellEndpointMemoryFallback(t *testing.T) {
 		t.Fatalf("expected empty roads in memory fallback: %s", body)
 	}
 }
+
+
+func TestResolveSpatialCell(t *testing.T) {
+	request := httptest.NewRequest(
+		http.MethodGet,
+		"/api/v1/spatial/cell?lat=45.75&lon=4.85",
+		nil,
+	)
+	recorder := httptest.NewRecorder()
+
+	handleResolveSpatialCell(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", recorder.Code, recorder.Body.String())
+	}
+
+	body := recorder.Body.String()
+	if !strings.Contains(body, "\"resolution\":9") {
+		t.Fatalf("expected H3 resolution 9: %s", body)
+	}
+	if !strings.Contains(body, "\"h3_index\":") {
+		t.Fatalf("expected H3 index in response: %s", body)
+	}
+}
+
+func TestResolveSpatialCellRejectsInvalidCoordinates(t *testing.T) {
+	request := httptest.NewRequest(
+		http.MethodGet,
+		"/api/v1/spatial/cell?lat=200&lon=4.85",
+		nil,
+	)
+	recorder := httptest.NewRecorder()
+
+	handleResolveSpatialCell(recorder, request)
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400, got %d", recorder.Code)
+	}
+}
