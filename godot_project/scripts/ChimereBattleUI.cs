@@ -215,7 +215,13 @@ namespace TerreZero.UI
 
         private void ResolveVictory()
         {
-            int xp = 18 + _wild.Level * 9;
+            int rarityBonus = _wild.Rarity switch
+            {
+                ChimereRarity.Rare => 12,
+                ChimereRarity.Alpha => 30,
+                _ => 0
+            };
+            int xp = 18 + _wild.Level * 9 + rarityBonus;
             bool levelUp = ChimereCombatEngine.GrantExperience(_active, xp);
             _active.Bond = Math.Min(100, _active.Bond + 2);
             ChimereSaveStore.Save();
@@ -239,7 +245,8 @@ namespace TerreZero.UI
 
             _enemyName.Text = _wild.Name.ToUpperInvariant();
             _playerName.Text = _active.Name.ToUpperInvariant();
-            _enemyStats.Text = $"NIV {_wild.Level:00}  //  {_wild.Affinity.ToString().ToUpperInvariant()}";
+            _enemyStats.Text =
+                $"NIV {_wild.Level:00}  //  {_wild.Affinity.ToString().ToUpperInvariant()}  //  {_wild.Rarity.ToString().ToUpperInvariant()}";
             _playerStats.Text = $"NIV {_active.Level:00}  //  LIEN {_active.Bond:00}";
 
             _enemyHp.MaxValue = _wild.MaxHp;
