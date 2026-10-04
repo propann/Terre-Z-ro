@@ -50,6 +50,13 @@ theme_override_colors/font_color = Color(0.78, 0.82, 0.76, 0.92)
 theme_override_font_sizes/font_size = 12
 text = "PV 100/100  •  END 100/100  •  RAD 0%"
 
+[node name="Weather" type="Label" parent="Root/TopLeft"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.65, 0.74, 0.82, 0.92)
+theme_override_font_sizes/font_size = 12
+text = "MÉTÉO // SYNCHRONISATION..."
+
 [node name="CrosshairH" type="ColorRect" parent="Root"]
 layout_mode = 1
 anchors_preset = 8
