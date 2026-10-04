@@ -19,6 +19,7 @@ namespace TerreZero.Chimeres
         public int MaxStability { get; set; }
         public int Bond { get; set; }
         public int Training { get; set; }
+        public int EvolutionStage { get; set; }
     }
 
     public sealed class ChimereSaveData
@@ -107,6 +108,7 @@ namespace TerreZero.Chimeres
                 chimere.Stability = chimere.MaxStability;
                 chimere.Bond = Math.Clamp(entry.Bond, 0, 100);
                 chimere.Training = Math.Max(0, entry.Training);
+                chimere.EvolutionStage = Math.Clamp(entry.EvolutionStage, 0, 2);
                 result.Add(chimere);
             }
             return result;
@@ -125,7 +127,8 @@ namespace TerreZero.Chimeres
                 Speed = chimere.Speed,
                 MaxStability = chimere.MaxStability,
                 Bond = chimere.Bond,
-                Training = chimere.Training
+                Training = chimere.Training,
+                EvolutionStage = chimere.EvolutionStage
             };
     }
 }
