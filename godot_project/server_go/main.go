@@ -377,6 +377,7 @@ func main() {
 	mux.HandleFunc("/api/v1/world/cells/", handleGetWorldCell)
 	mux.HandleFunc("/api/v1/spatial/cell", handleResolveSpatialCell)
 	mux.HandleFunc("/api/v1/spatial/start", handleValidateStartLocation)
+	mux.HandleFunc("/api/v1/weather", handleWeather)
 	mux.HandleFunc("/ws/spatial", handleSpatialWebSocket)
 
 	server := &http.Server{
