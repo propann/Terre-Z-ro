@@ -705,6 +705,11 @@ namespace TerreZero.World
                     _urbanDecorContainer,
                     _weatherVisuals.CurrentSurfaceWetness
                 );
+
+                UrbanDecorDirector.SetSnowCover(
+                    _urbanDecorContainer,
+                    _weatherVisuals.CurrentSnowCover
+                );
             }
         }
 
@@ -768,6 +773,11 @@ namespace TerreZero.World
                 UrbanDecorDirector.SetWetness(
                     _urbanDecorContainer,
                     _weatherVisuals.CurrentSurfaceWetness
+                );
+
+                UrbanDecorDirector.SetSnowCover(
+                    _urbanDecorContainer,
+                    _weatherVisuals.CurrentSnowCover
                 );
 
                 GD.Print(
