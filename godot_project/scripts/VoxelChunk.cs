@@ -195,31 +195,11 @@ namespace TerreZero.World.Voxel
 
         private void ApplySurfaceWetness()
         {
-            if (MeshInstance?.MaterialOverride is not StandardMaterial3D material)
+            if (MeshInstance?.MaterialOverride is not ShaderMaterial material)
                 return;
 
-            float darken = Mathf.Lerp(1.0f, 0.72f, _surfaceWetness);
-
-            if (_xrayActive)
-            {
-                material.Roughness = 0.22f;
-                material.Metallic = 0.28f;
-                material.AlbedoColor = new Color(
-                    darken * 0.72f,
-                    darken * 0.46f,
-                    darken * 0.20f,
-                    1f
-                );
-                material.EmissionEnabled = true;
-                material.Emission = new Color(0.97f, 0.45f, 0.09f);
-                material.EmissionEnergyMultiplier = 0.65f;
-                return;
-            }
-
-            material.Roughness = Mathf.Lerp(0.82f, 0.24f, _surfaceWetness);
-            material.Metallic = Mathf.Lerp(0.08f, 0.14f, _surfaceWetness);
-            material.AlbedoColor = new Color(darken, darken, darken, 1f);
-            material.EmissionEnabled = false;
+            material.SetShaderParameter("wetness", _surfaceWetness);
+            material.SetShaderParameter("xray_mode", _xrayActive);
         }
 
         public void SetStreamingActive(bool active)
