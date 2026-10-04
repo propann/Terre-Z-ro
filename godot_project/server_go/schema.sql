@@ -34,6 +34,14 @@ CREATE TABLE IF NOT EXISTS osm_roads (
 CREATE INDEX IF NOT EXISTS idx_roads_geom ON osm_roads USING GIST (geom);
 CREATE INDEX IF NOT EXISTS idx_roads_h3 ON osm_roads (h3_index);
 
+CREATE TABLE IF NOT EXISTS osm_cell_cache (
+    h3_index VARCHAR(16) PRIMARY KEY,
+    fetched_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    building_count INT NOT NULL DEFAULT 0,
+    road_count INT NOT NULL DEFAULT 0,
+    source VARCHAR(64) NOT NULL DEFAULT 'overpass'
+);
+
 CREATE TABLE IF NOT EXISTS voxel_deltas (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     world_version INT NOT NULL DEFAULT 1,
