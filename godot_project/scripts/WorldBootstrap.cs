@@ -650,6 +650,16 @@ namespace TerreZero.World
                 _player.GlobalPosition,
                 ResolveEncounterContext()
             );
+
+            if (_weatherVisuals != null)
+            {
+                UrbanDecorDirector.SetStreetLights(
+                    _urbanDecorContainer,
+                    !_weatherVisuals.CurrentIsDay ||
+                    _weatherVisuals.CurrentStormIntensity > 0.45f,
+                    _weatherVisuals.CurrentStormIntensity
+                );
+            }
         }
 
         private void SpawnRadiationHazards()
@@ -691,6 +701,13 @@ namespace TerreZero.World
                 _weatherVisuals.Apply(weather);
                 _world?.SetSurfaceWetness(
                     _weatherVisuals.CurrentSurfaceWetness
+                );
+
+                UrbanDecorDirector.SetStreetLights(
+                    _urbanDecorContainer,
+                    !_weatherVisuals.CurrentIsDay ||
+                    _weatherVisuals.CurrentStormIntensity > 0.45f,
+                    _weatherVisuals.CurrentStormIntensity
                 );
                 GD.Print(
                     $"[TERRE ZÉRO] météo réelle {weather.Current.TemperatureC:F1}°C " +
